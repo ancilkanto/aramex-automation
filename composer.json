@@ -1,0 +1,23 @@
+{
+    "name": "aramex/automation",
+    "description": "Automation plugin for Aramex shipping functionality",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Ancil K Anto",
+            "email": "ancil.dev@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "AramexAutomation\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+} 
