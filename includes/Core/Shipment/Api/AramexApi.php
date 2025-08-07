@@ -12,11 +12,6 @@ class AramexApi
      */
     public function createShipment($shipment_data)
     {
-        // Log that we're starting the shipment creation
-        file_put_contents(ARAMEX_AUTOMATION_PLUGIN_PATH . 'debug-api.log', 
-            date('Y-m-d H:i:s') . ' - Starting shipment creation...' . "\n", 
-            FILE_APPEND);
-        
         try {
             // Get Aramex settings
             $aramex_settings = get_option('woocommerce_aramex_settings');
@@ -27,20 +22,9 @@ class AramexApi
                 ];
             }
 
-            // Log the shipment data for debugging
-            error_log('Aramex Automation: Shipment data - ' . print_r($shipment_data, true));
-
             // Get API info
             $api_info = $this->getApiInfo($aramex_settings);
             $client_info = $this->getClientInfo($aramex_settings);
-
-            // Log API info (without sensitive data)
-            $log_client_info = $client_info;
-            unset($log_client_info['Password']);
-            error_log('Aramex Automation: Client info - ' . print_r($log_client_info, true));
-            error_log('Aramex Automation: API URL - ' . $api_info['baseUrl']);
-            
-
 
             // Validate required fields
             $validation_result = $this->validateShipmentData($shipment_data);
@@ -53,7 +37,6 @@ class AramexApi
 
             // Format shipment data
             $formatted_data = $this->formatShipmentData($shipment_data);
-            error_log('Aramex Automation: Formatted data - ' . print_r($formatted_data, true));
 
             // Create SOAP client
             $client = new \SoapClient($api_info['baseUrl'], [
@@ -70,8 +53,6 @@ class AramexApi
                     'ReportType' => 'URL'
                 ]
             ];
-
-            error_log('Aramex Automation: SOAP request - ' . print_r($major_par, true));
 
             // Make SOAP call
             $response = $client->CreateShipments($major_par);
@@ -110,9 +91,6 @@ class AramexApi
 
             // Prepare pickup data
             $pickup_data = $this->preparePickupData($order, $aramex_settings);
-            
-            // Log pickup data for debugging
-            error_log('Aramex Automation: Pickup data - ' . print_r($pickup_data, true));
 
             // Create SOAP client
             $client = new \SoapClient($api_info['baseUrl'], [
@@ -128,9 +106,6 @@ class AramexApi
                 ],
                 'Pickup' => $pickup_data
             ];
-            
-            // Log SOAP request for debugging
-            error_log('Aramex Automation: SOAP pickup request - ' . print_r($major_par, true));
 
             // Make SOAP call
             $response = $client->CreatePickup($major_par);
@@ -511,13 +486,6 @@ class AramexApi
      */
     private function processShipmentResponse($response)
     {
-        // Log the full response for debugging
-        error_log('Aramex Automation: Full API Response - ' . print_r($response, true));
-        
-        // Also log to a file for easier debugging
-        file_put_contents(ARAMEX_AUTOMATION_PLUGIN_PATH . 'debug-api.log', 
-            date('Y-m-d H:i:s') . ' - API Response: ' . print_r($response, true) . "\n", 
-            FILE_APPEND);
         
         // Check for errors using the same logic as the original plugin
         if ($response->HasErrors) {
@@ -568,12 +536,9 @@ class AramexApi
         }
 
         // If we get here, something unexpected happened
-        $debug_info = 'Response structure: ' . json_encode($response);
-        error_log('Aramex Automation: Unexpected response structure - ' . $debug_info);
-        
         return [
             'success' => false,
-            'message' => 'No tracking number returned from API. Response structure: ' . $debug_info
+            'message' => 'No tracking number returned from API'
         ];
     }
 
@@ -582,8 +547,6 @@ class AramexApi
      */
     private function processPickupResponse($response)
     {
-        // Log the full pickup response for debugging
-        error_log('Aramex Automation: Full Pickup Response - ' . print_r($response, true));
         
         if (isset($response->HasErrors) && $response->HasErrors) {
             $error_message = 'Pickup Error: ';
@@ -612,12 +575,9 @@ class AramexApi
         }
 
         // If we get here, something unexpected happened
-        $debug_info = 'Response structure: ' . json_encode($response);
-        error_log('Aramex Automation: Unexpected pickup response structure - ' . $debug_info);
-        
         return [
             'success' => false,
-            'message' => 'No pickup ID returned from API. Response structure: ' . $debug_info
+            'message' => 'No pickup ID returned from API'
         ];
     }
 } 
