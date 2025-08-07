@@ -92,8 +92,9 @@ if ($recent_result) {
                             <td>
                                 <select id="pickup_date" name="pickup_date">
                                     <option value="today" <?php selected(get_option('aramex_automation_pickup_date', 'tomorrow'), 'today'); ?>>Same Day</option>
-                                    <option value="tomorrow" <?php selected(get_option('aramex_automation_pickup_date', 'tomorrow'), 'tomorrow'); ?>>Next Day</option>
+                                    <option value="tomorrow" <?php selected(get_option('aramex_automation_pickup_date', 'tomorrow'), 'tomorrow'); ?>>Next Working Day</option>
                                 </select>
+                                <p class="description">Next Working Day will automatically skip non-working days (as configured above).</p>
                             </td>
                         </tr>
                         <tr>
@@ -103,28 +104,30 @@ if ($recent_result) {
                             <td>
                                 <select id="ready_hour" name="ready_hour">
                                     <?php for ($i = 8; $i <= 18; $i++): ?>
-                                        <option value="<?php echo $i; ?>" <?php selected(get_option('aramex_automation_ready_hour', '9'), $i); ?>><?php echo $i; ?>:00</option>
+                                        <option value="<?php echo $i; ?>" <?php selected(get_option('aramex_automation_ready_hour', '9'), $i); ?>><?php echo $i; ?></option>
                                     <?php endfor; ?>
                                 </select>
+                                <span style="margin: 0 5px; font-weight: bold;">:</span>
                                 <select id="ready_minute" name="ready_minute">
-                                    <option value="0" <?php selected(get_option('aramex_automation_ready_minute', '0'), '0'); ?>>:00</option>
-                                    <option value="30" <?php selected(get_option('aramex_automation_ready_minute', '0'), '30'); ?>>:30</option>
+                                    <option value="0" <?php selected(get_option('aramex_automation_ready_minute', '0'), '0'); ?>>00</option>
+                                    <option value="30" <?php selected(get_option('aramex_automation_ready_minute', '0'), '30'); ?>>30</option>
                                 </select>
                             </td>
                         </tr>
                         <tr>
                             <th scope="row">
-                                <label for="latest_hour">Latest Pickup Time</label>
+                                <label for="latest_hour">Closing Time</label>
                             </th>
                             <td>
                                 <select id="latest_hour" name="latest_hour">
                                     <?php for ($i = 14; $i <= 20; $i++): ?>
-                                        <option value="<?php echo $i; ?>" <?php selected(get_option('aramex_automation_latest_hour', '17'), $i); ?>><?php echo $i; ?>:00</option>
+                                        <option value="<?php echo $i; ?>" <?php selected(get_option('aramex_automation_latest_hour', '17'), $i); ?>><?php echo $i; ?></option>
                                     <?php endfor; ?>
                                 </select>
+                                <span style="margin: 0 5px; font-weight: bold;">:</span>
                                 <select id="latest_minute" name="latest_minute">
-                                    <option value="0" <?php selected(get_option('aramex_automation_latest_minute', '0'), '0'); ?>>:00</option>
-                                    <option value="30" <?php selected(get_option('aramex_automation_latest_minute', '0'), '30'); ?>>:30</option>
+                                    <option value="0" <?php selected(get_option('aramex_automation_latest_minute', '0'), '0'); ?>>00</option>
+                                    <option value="30" <?php selected(get_option('aramex_automation_latest_minute', '0'), '30'); ?>>30</option>
                                 </select>
                             </td>
                         </tr>
@@ -137,6 +140,80 @@ if ($recent_result) {
                                 <p class="description">Location where Aramex will pick up the shipment</p>
                             </td>
                         </tr>
+                        <tr>
+                            <th scope="row">
+                                <label>Non-Working Days</label>
+                            </th>
+                            <td>
+                                <?php 
+                                $non_working_days = get_option('aramex_automation_non_working_days', ['saturday', 'sunday']);
+                                $days_of_week = [
+                                    'monday' => 'Monday',
+                                    'tuesday' => 'Tuesday', 
+                                    'wednesday' => 'Wednesday',
+                                    'thursday' => 'Thursday',
+                                    'friday' => 'Friday',
+                                    'saturday' => 'Saturday',
+                                    'sunday' => 'Sunday'
+                                ];
+                                ?>
+                                <fieldset>
+                                    <legend class="screen-reader-text">Non-Working Days</legend>
+                                    <?php foreach ($days_of_week as $day_value => $day_label): ?>
+                                        <label style="display: inline-block; margin-right: 15px; margin-bottom: 5px;">
+                                            <input type="checkbox" name="non_working_days[]" value="<?php echo esc_attr($day_value); ?>" 
+                                                   <?php checked(in_array($day_value, $non_working_days), true); ?> />
+                                            <?php echo esc_html($day_label); ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </fieldset>
+                                <p class="description">Select the days when Aramex does not operate. Pickups will be automatically scheduled for the next available working day.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="auto_cron_enabled">Enable Automatic Processing</label>
+                            </th>
+                            <td>
+                                <input type="checkbox" id="auto_cron_enabled" name="auto_cron_enabled" value="1" 
+                                       <?php checked(get_option('aramex_automation_auto_cron_enabled', '0'), '1'); ?> />
+                                <label for="auto_cron_enabled">Automatically process orders daily at scheduled time</label>
+                                <p class="description">When enabled, the system will automatically create shipments for processing orders daily.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="cron_hour">Automation Time</label>
+                            </th>
+                            <td>
+                                <select id="cron_hour" name="cron_hour">
+                                    <?php for ($i = 0; $i <= 23; $i++): ?>
+                                        <option value="<?php echo $i; ?>" <?php selected(get_option('aramex_automation_cron_hour', '9'), $i); ?>><?php echo str_pad($i, 2, '0', STR_PAD_LEFT); ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                                <span style="margin: 0 5px; font-weight: bold;">:</span>
+                                <select id="cron_minute" name="cron_minute">
+                                    <option value="0" <?php selected(get_option('aramex_automation_cron_minute', '0'), '0'); ?>>00</option>
+                                    <option value="15" <?php selected(get_option('aramex_automation_cron_minute', '0'), '15'); ?>>15</option>
+                                    <option value="30" <?php selected(get_option('aramex_automation_cron_minute', '0'), '30'); ?>>30</option>
+                                    <option value="45" <?php selected(get_option('aramex_automation_cron_minute', '0'), '45'); ?>>45</option>
+                                </select>
+                                <p class="description">Time when automatic order processing will run daily (24-hour format).</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="cron_order_status">Order Status to Process</label>
+                            </th>
+                            <td>
+                                <select id="cron_order_status" name="cron_order_status">
+                                    <option value="processing" <?php selected(get_option('aramex_automation_cron_order_status', 'processing'), 'processing'); ?>>Processing</option>
+                                    <option value="on-hold" <?php selected(get_option('aramex_automation_cron_order_status', 'processing'), 'on-hold'); ?>>On Hold</option>
+                                    <option value="pending" <?php selected(get_option('aramex_automation_cron_order_status', 'processing'), 'pending'); ?>>Pending</option>
+                                </select>
+                                <p class="description">Orders with this status will be automatically processed for shipment creation.</p>
+                            </td>
+                        </tr>
                     </table>
                     
                     <p class="submit">
@@ -144,6 +221,71 @@ if ($recent_result) {
                                value="Save Settings" />
                     </p>
                 </form>
+
+                <!-- Cron Status Section -->
+                <div class="aramex-automation-section">
+                    <h3>Automation Status</h3>
+                    <?php
+                    $cron_status = \AramexAutomation\Core\Cron\CronAutomation::getCronStatus();
+                    $cron_results = get_transient('aramex_automation_cron_results');
+                    ?>
+                    
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">Status</th>
+                            <td>
+                                <span class="status-indicator <?php echo $cron_status['enabled'] ? 'enabled' : 'disabled'; ?>">
+                                    <?php echo $cron_status['enabled'] ? 'Enabled' : 'Disabled'; ?>
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Next Run</th>
+                            <td><?php echo esc_html($cron_status['next_run']); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Scheduled Time</th>
+                            <td><?php echo esc_html(str_pad($cron_status['cron_hour'], 2, '0', STR_PAD_LEFT) . ':' . str_pad($cron_status['cron_minute'], 2, '0', STR_PAD_LEFT)); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Order Status</th>
+                            <td><?php echo esc_html(ucfirst($cron_status['order_status'])); ?></td>
+                        </tr>
+                    </table>
+
+                    <?php if ($cron_results): ?>
+                    <h4>Last Run Results (<?php echo esc_html($cron_results['timestamp']); ?>)</h4>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">Processed Orders</th>
+                            <td><?php echo esc_html($cron_results['processed_count']); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Successful</th>
+                            <td><span class="success-count"><?php echo esc_html($cron_results['success_count']); ?></span></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Failed</th>
+                            <td><span class="error-count"><?php echo esc_html($cron_results['error_count']); ?></span></td>
+                        </tr>
+                    </table>
+
+                    <?php if (!empty($cron_results['errors'])): ?>
+                    <h4>Errors</h4>
+                    <div class="error-list">
+                        <?php foreach ($cron_results['errors'] as $error): ?>
+                            <div class="error-item"><?php echo esc_html($error); ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php endif; ?>
+
+                    <p>
+                        <a href="<?php echo admin_url('admin.php?page=aramex-shipment-automation&tab=settings&trigger_cron=1'); ?>" 
+                           class="button button-secondary">Test Automation Now</a>
+                        <span class="description">Manually trigger the automation to test it.</span>
+                    </p>
+                </div>
             </div>
         </div>
         
@@ -282,6 +424,42 @@ if ($recent_result) {
     }
     .nav-tab-wrapper {
         margin-bottom: 20px;
+    }
+    .status-indicator {
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-weight: bold;
+    }
+    .status-indicator.enabled {
+        background: #46b450;
+        color: #fff;
+    }
+    .status-indicator.disabled {
+        background: #dc3232;
+        color: #fff;
+    }
+    .success-count {
+        color: #46b450;
+        font-weight: bold;
+    }
+    .error-count {
+        color: #dc3232;
+        font-weight: bold;
+    }
+    .error-list {
+        background: #f9f9f9;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 3px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .error-item {
+        padding: 5px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .error-item:last-child {
+        border-bottom: none;
     }
 </style>
 

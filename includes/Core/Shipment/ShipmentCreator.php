@@ -3,7 +3,7 @@
 namespace AramexAutomation\Core\Shipment;
 
 use AramexAutomation\Core\Shipment\Api\AramexApi;
-use AramexAutomation\Core\Email\CustomerEmail;
+use AramexAutomation\Core\Email\EmailManager;
 use AramexAutomation\Core\Shipment\PickupScheduler;
 
 /**
@@ -43,8 +43,7 @@ class ShipmentCreator
                 
                 // Send email to customer if enabled
                 if (get_option('aramex_automation_auto_email', '1') == '1') {
-                    $email = new CustomerEmail();
-                    $email->sendCustomerEmail($order, $result['tracking']);
+                    EmailManager::sendShipmentEmail($order, $result['tracking']);
                 }
                 
                 // Schedule pickup if enabled
@@ -213,7 +212,7 @@ class ShipmentCreator
         $note_content = "AWB No. " . $tracking_number . " - Order No. " . $order->get_id();
         $order->add_order_note($note_content);
         
-        // Update order status to "on-hold" (same as original plugin)
-        $order->update_status('on-hold', __('Aramex shipment created.', 'aramex-automation'));
+        // Don't change status here - it will be changed to "awaiting shipment" after pickup scheduling
+        // The status will be managed by the PickupScheduler
     }
 } 

@@ -27,19 +27,29 @@ require_once ARAMEX_AUTOMATION_PLUGIN_PATH . 'vendor/autoload.php';
 
 // Initialize the plugin
 add_action('plugins_loaded', function() {
-    // Debug: Log plugin loading attempt
-    file_put_contents(plugin_dir_path(__FILE__) . 'debug-api.log', 
-        date('Y-m-d H:i:s') . ' - Main plugin file: plugins_loaded action triggered' . "\n", 
-        FILE_APPEND);
-    
     if (class_exists('AramexAutomation\\Plugin')) {
-        file_put_contents(plugin_dir_path(__FILE__) . 'debug-api.log', 
-            date('Y-m-d H:i:s') . ' - Main plugin file: Plugin class found, initializing...' . "\n", 
-            FILE_APPEND);
         new AramexAutomation\Plugin();
-    } else {
-        file_put_contents(plugin_dir_path(__FILE__) . 'debug-api.log', 
-            date('Y-m-d H:i:s') . ' - Main plugin file: Plugin class NOT found!' . "\n", 
-            FILE_APPEND);
     }
+});
+
+// Activation hook
+register_activation_hook(__FILE__, function() {
+    // Schedule cron job if automation is enabled
+    if (get_option('aramex_automation_auto_cron_enabled', '0') === '1') {
+        $cron_hour = get_option('aramex_automation_cron_hour', '9');
+        $cron_minute = get_option('aramex_automation_cron_minute', '0');
+        
+        $next_run = strtotime("today {$cron_hour}:{$cron_minute}:00");
+        if ($next_run <= time()) {
+            $next_run = strtotime("tomorrow {$cron_hour}:{$cron_minute}:00");
+        }
+        
+        wp_schedule_event($next_run, 'daily', 'aramex_automation_daily_cron');
+    }
+});
+
+// Deactivation hook
+register_deactivation_hook(__FILE__, function() {
+    // Clear scheduled cron job
+    wp_clear_scheduled_hook('aramex_automation_daily_cron');
 }); 

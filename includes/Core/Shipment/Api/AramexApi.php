@@ -110,6 +110,9 @@ class AramexApi
 
             // Prepare pickup data
             $pickup_data = $this->preparePickupData($order, $aramex_settings);
+            
+            // Log pickup data for debugging
+            error_log('Aramex Automation: Pickup data - ' . print_r($pickup_data, true));
 
             // Create SOAP client
             $client = new \SoapClient($api_info['baseUrl'], [
@@ -119,9 +122,15 @@ class AramexApi
 
             // Prepare SOAP request
             $major_par = [
-                'Pickup' => $pickup_data,
-                'ClientInfo' => $client_info
+                'ClientInfo' => $client_info,
+                'Transaction' => [
+                    'Reference1' => $order->get_id()
+                ],
+                'Pickup' => $pickup_data
             ];
+            
+            // Log SOAP request for debugging
+            error_log('Aramex Automation: SOAP pickup request - ' . print_r($major_par, true));
 
             // Make SOAP call
             $response = $client->CreatePickup($major_par);
@@ -349,6 +358,83 @@ class AramexApi
     }
 
     /**
+     * Get next working day based on configurable non-working days
+     */
+    private function getNextWorkingDay($start_date = null)
+    {
+        if ($start_date === null) {
+            $start_date = time();
+        }
+        
+        // Get configured non-working days (default to Saturday and Sunday)
+        $non_working_days = get_option('aramex_automation_non_working_days', ['saturday', 'sunday']);
+        
+        // Convert day names to numbers (1=Monday, 7=Sunday)
+        $day_number_map = [
+            'monday' => 1,
+            'tuesday' => 2,
+            'wednesday' => 3,
+            'thursday' => 4,
+            'friday' => 5,
+            'saturday' => 6,
+            'sunday' => 7
+        ];
+        
+        $non_working_numbers = [];
+        foreach ($non_working_days as $day) {
+            if (isset($day_number_map[$day])) {
+                $non_working_numbers[] = $day_number_map[$day];
+            }
+        }
+        
+        // Check if current day is a non-working day
+        $current_day = date('N', $start_date); // 1 (Monday) through 7 (Sunday)
+        
+        // If current day is non-working, find next working day
+        if (in_array($current_day, $non_working_numbers)) {
+            $days_to_check = 1;
+            while ($days_to_check <= 7) { // Maximum 7 days to avoid infinite loop
+                $check_date = $start_date + ($days_to_check * 24 * 60 * 60);
+                $check_day = date('N', $check_date);
+                
+                if (!in_array($check_day, $non_working_numbers)) {
+                    return $check_date;
+                }
+                $days_to_check++;
+            }
+        }
+        
+        // If current day is working, check pickup date preference
+        $pickup_date = get_option('aramex_automation_pickup_date', 'tomorrow');
+        if ($pickup_date === 'today') {
+            return $start_date;
+        } else {
+            // For tomorrow, check if it's a non-working day
+            $tomorrow = $start_date + (24 * 60 * 60);
+            $tomorrow_day = date('N', $tomorrow);
+            
+            if (in_array($tomorrow_day, $non_working_numbers)) {
+                // Tomorrow is non-working, find next working day
+                $days_to_check = 1;
+                while ($days_to_check <= 7) {
+                    $check_date = $tomorrow + ($days_to_check * 24 * 60 * 60);
+                    $check_day = date('N', $check_date);
+                    
+                    if (!in_array($check_day, $non_working_numbers)) {
+                        return $check_date;
+                    }
+                    $days_to_check++;
+                }
+            } else {
+                return $tomorrow;
+            }
+        }
+        
+        // Fallback: return original start date if something goes wrong
+        return $start_date;
+    }
+
+    /**
      * Prepare pickup data
      */
     private function preparePickupData($order, $aramex_settings)
@@ -360,7 +446,12 @@ class AramexApi
         $latest_minute = get_option('aramex_automation_latest_minute', '0');
         $pickup_location = get_option('aramex_automation_pickup_location', 'Reception');
 
-        $pickup_date_timestamp = ($pickup_date === 'today') ? time() : time() + (24 * 60 * 60);
+        // Get next working day for pickup
+        $pickup_date_timestamp = $this->getNextWorkingDay();
+        
+        // Create Unix timestamps for time fields (following the original plugin's approach)
+        $ready_time = mktime($ready_hour, $ready_minute, 0, date("m", $pickup_date_timestamp), date("d", $pickup_date_timestamp), date("Y", $pickup_date_timestamp));
+        $closing_time = mktime($latest_hour, $latest_minute, 0, date("m", $pickup_date_timestamp), date("d", $pickup_date_timestamp), date("Y", $pickup_date_timestamp));
 
         return [
             'PickupAddress' => [
@@ -386,13 +477,32 @@ class AramexApi
                 'EmailAddress' => $aramex_settings['email_origin'],
                 'Type' => ''
             ],
-            'PickupDate' => date('Y-m-d', $pickup_date_timestamp),
-            'ReadyTime' => $ready_hour . ':' . $ready_minute,
-            'LastPickupTime' => $latest_hour . ':' . $latest_minute,
-            'ClosingTime' => $latest_hour . ':' . $latest_minute,
+            'PickupDate' => $ready_time,
+            'ReadyTime' => $ready_time,
+            'LastPickupTime' => $closing_time,
+            'ClosingTime' => $closing_time,
+            'Comments' => 'Auto-scheduled pickup for order #' . $order->get_id(),
+            'Reference1' => $order->get_id(),
+            'Reference2' => '',
+            'Vehicle' => 'Van',
+            'Shipments' => [
+                'Shipment' => []
+            ],
+            'PickupItems' => [
+                'PickupItemDetail' => [
+                    'ProductGroup' => 'DOM',
+                    'ProductType' => 'OND',
+                    'Payment' => 'P',
+                    'NumberOfShipments' => 1,
+                    'NumberOfPieces' => 1,
+                    'ShipmentWeight' => [
+                        'Value' => 1,
+                        'Unit' => 'KG'
+                    ]
+                ]
+            ],
             'Status' => 'Pending',
-            'PickupLocation' => $pickup_location,
-            'SpecialInstructions' => 'Auto-scheduled pickup for order #' . $order->get_id()
+            'PickupLocation' => $pickup_location
         ];
     }
 
@@ -472,13 +582,18 @@ class AramexApi
      */
     private function processPickupResponse($response)
     {
+        // Log the full pickup response for debugging
+        error_log('Aramex Automation: Full Pickup Response - ' . print_r($response, true));
+        
         if (isset($response->HasErrors) && $response->HasErrors) {
             $error_message = 'Pickup Error: ';
-            if (isset($response->Notifications) && is_array($response->Notifications)) {
-                foreach ($response->Notifications as $notification) {
-                    if (isset($notification->Message)) {
-                        $error_message .= $notification->Message . ' ';
+            if (isset($response->Notifications)) {
+                if (is_array($response->Notifications->Notification) && count($response->Notifications->Notification) > 1) {
+                    foreach ($response->Notifications->Notification as $notification) {
+                        $error_message .= $notification->Code . ' - ' . $notification->Message . ' ';
                     }
+                } else {
+                    $error_message .= $response->Notifications->Notification->Code . ' - ' . $response->Notifications->Notification->Message;
                 }
             }
             return [
@@ -487,17 +602,22 @@ class AramexApi
             ];
         }
 
-        if (isset($response->ID)) {
+        // Check for successful response using the same logic as the original plugin
+        if (isset($response->ProcessedPickup->ID)) {
             return [
                 'success' => true,
-                'pickup_id' => $response->ID,
-                'message' => 'Pickup scheduled successfully. Pickup ID: ' . $response->ID
+                'pickup_id' => $response->ProcessedPickup->ID,
+                'message' => 'Pickup scheduled successfully. Pickup ID: ' . $response->ProcessedPickup->ID
             ];
         }
 
+        // If we get here, something unexpected happened
+        $debug_info = 'Response structure: ' . json_encode($response);
+        error_log('Aramex Automation: Unexpected pickup response structure - ' . $debug_info);
+        
         return [
             'success' => false,
-            'message' => 'No pickup ID returned from API'
+            'message' => 'No pickup ID returned from API. Response structure: ' . $debug_info
         ];
     }
 } 

@@ -20,17 +20,12 @@ class CustomerEmail
                 return true;
             }
             
-            $to = $order->get_billing_email();
-            $subject = 'Your order #' . $order->get_id() . ' has been shipped';
+            // Use WooCommerce email system
+            $mailer = WC()->mailer();
+            $email_content = $this->getWooCommerceEmailTemplate($order, $tracking_number);
             
-            $message = $this->getEmailTemplate($order, $tracking_number);
-            
-            $headers = [
-                'Content-Type: text/html; charset=UTF-8',
-                'From: ' . get_option('blogname') . ' <' . get_option('admin_email') . '>'
-            ];
-            
-            $sent = wp_mail($to, $subject, $message, $headers);
+            // Send using WooCommerce mailer
+            $sent = $mailer->send($order->get_billing_email(), 'Your order #' . $order->get_id() . ' has been shipped', $email_content);
             
             if ($sent) {
                 $order->add_order_note('Tracking information email sent to customer');
@@ -49,44 +44,67 @@ class CustomerEmail
     }
 
     /**
-     * Get email template
+     * Get WooCommerce email template
      */
-    private function getEmailTemplate($order, $tracking_number)
+    private function getWooCommerceEmailTemplate($order, $tracking_number)
     {
+        // Get WooCommerce email template
+        $mailer = WC()->mailer();
+        $email_heading = 'Your order has been shipped!';
+        
+        // Start output buffering to capture the email content
+        ob_start();
+        
+        // Include WooCommerce email header
+        wc_get_template('emails/email-header.php', [
+            'email_heading' => $email_heading,
+            'email' => $mailer
+        ]);
+        
+        // Email content
         $customer_name = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
         $order_total = $order->get_formatted_order_total();
+        $tracking_url = 'https://www.aramex.com/track/' . $tracking_number;
         
-        $template = '
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Order Shipped</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #2c3e50;">Your Order Has Been Shipped!</h2>
-                
-                <p>Dear ' . esc_html($customer_name) . ',</p>
-                
-                <p>Great news! Your order <strong>#' . $order->get_id() . '</strong> has been shipped and is on its way to you.</p>
-                
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <h3 style="margin-top: 0; color: #2c3e50;">Tracking Information</h3>
-                    <p><strong>Tracking Number:</strong> ' . esc_html($tracking_number) . '</p>
-                    <p><strong>Order Total:</strong> ' . $order_total . '</p>
-                </div>
-                
-                <p>You can track your shipment using the tracking number above through the Aramex website.</p>
-                
-                <p>Thank you for your order!</p>
-                
-                <p>Best regards,<br>
-                ' . get_option('blogname') . '</p>
-            </div>
-        </body>
-        </html>';
+        ?>
+        <p><?php printf(esc_html__('Hi %s,', 'woocommerce'), esc_html($customer_name)); ?></p>
         
-        return $template;
+        <p><?php printf(esc_html__('Great news! Your order #%s has been shipped and is on its way to you.', 'aramex-automation'), $order->get_id()); ?></p>
+        
+        <h2><?php esc_html_e('Tracking Information', 'aramex-automation'); ?></h2>
+        
+        <table class="td" cellspacing="0" cellpadding="6" style="width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; margin-bottom: 40px;" border="1">
+            <tbody>
+                <tr>
+                    <td class="td" scope="row" style="text-align: left; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
+                        <strong><?php esc_html_e('Tracking Number:', 'aramex-automation'); ?></strong>
+                    </td>
+                    <td class="td" scope="row" style="text-align: left; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
+                        <a href="<?php echo esc_url($tracking_url); ?>" target="_blank"><?php echo esc_html($tracking_number); ?></a>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="td" scope="row" style="text-align: left; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
+                        <strong><?php esc_html_e('Order Total:', 'woocommerce'); ?></strong>
+                    </td>
+                    <td class="td" scope="row" style="text-align: left; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
+                        <?php echo $order_total; ?>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p><?php esc_html_e('You can track your shipment using the tracking number above through the Aramex website.', 'aramex-automation'); ?></p>
+        
+        <p><?php esc_html_e('Thank you for your order!', 'woocommerce'); ?></p>
+        
+        <?php
+        // Include WooCommerce email footer
+        wc_get_template('emails/email-footer.php', [
+            'email' => $mailer
+        ]);
+        
+        $content = ob_get_clean();
+        return $content;
     }
 } 

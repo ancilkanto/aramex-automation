@@ -53,11 +53,47 @@ class Plugin
      */
     private function checkDependencies()
     {
-        if (!is_plugin_active('aramex-shipping-woocommerce/aramex-shipping.php')) {
+        // Check if the plugin file exists
+        $plugin_file = 'aramex-shipping-woocommerce/aramex-shipping.php';
+        $plugin_path = WP_PLUGIN_DIR . '/' . $plugin_file;
+        
+        if (!file_exists($plugin_path)) {
             add_action('admin_notices', [$this, 'adminNotice']);
             return false;
         }
+        
+        // Check if plugin is active
+        if (!is_plugin_active($plugin_file)) {
+            add_action('admin_notices', [$this, 'adminNotice']);
+            return false;
+        }
+        
         return true;
+    }
+    
+    /**
+     * Register custom order status for awaiting shipment
+     */
+    public function registerCustomOrderStatus()
+    {
+        // Register the "awaiting-shipment" status
+        register_post_status('awaiting-shipment', array(
+            'label' => _x('Awaiting Shipment', 'Order status', 'aramex-automation'),
+            'public' => true,
+            'exclude_from_search' => false,
+            'show_in_admin_all_list' => true,
+            'show_in_admin_status_list' => true,
+            'label_count' => _n_noop('Awaiting Shipment <span class="count">(%s)</span>', 'Awaiting Shipment <span class="count">(%s)</span>', 'aramex-automation')
+        ));
+    }
+    
+    /**
+     * Add custom order status to WooCommerce order statuses list
+     */
+    public function addCustomOrderStatus($order_statuses)
+    {
+        $order_statuses['wc-awaiting-shipment'] = _x('Awaiting Shipment', 'Order status', 'aramex-automation');
+        return $order_statuses;
     }
 
     /**
@@ -77,9 +113,6 @@ class Plugin
      */
     private function initComponents()
     {
-        // Debug: Log plugin initialization
-        error_log('Aramex Automation: Plugin initializing...');
-        
         // Initialize core components
         new Core\DependencyChecker();
         new Core\Assets();
@@ -87,9 +120,12 @@ class Plugin
         new Core\Admin\AdminPage();
         new Core\Shipment\ShipmentCreator();
         new Core\Shipment\PickupScheduler();
-        new Core\Email\CustomerEmail();
+        new Core\Email\EmailManager();
         new Core\Logging\ShipmentLogger();
+        new Core\Cron\CronAutomation();
         
-        error_log('Aramex Automation: Plugin initialized successfully');
+        // Register custom order status
+        add_action('init', [$this, 'registerCustomOrderStatus']);
+        add_filter('wc_order_statuses', [$this, 'addCustomOrderStatus']);
     }
 } 
