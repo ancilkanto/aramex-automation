@@ -16,7 +16,6 @@ class CustomerEmail
             // Check if email was already sent for this tracking number
             $email_sent_key = 'aramex_email_sent_' . $order->get_id() . '_' . $tracking_number;
             if (get_transient($email_sent_key)) {
-                error_log('Aramex Automation: Email already sent for order #' . $order->get_id() . ' with tracking #' . $tracking_number);
                 return true;
             }
             

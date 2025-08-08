@@ -109,7 +109,7 @@ class CronAutomation
                 
                 if ($result['success']) {
                     $success_count++;
-                    error_log('Aramex Automation: Cron successfully created shipment for order #' . $order_id . ' - Tracking: ' . $result['tracking']);
+                    
                 } else {
                     $error_count++;
                     $errors[] = "Order #{$order_id}: " . $result['message'];
@@ -127,7 +127,6 @@ class CronAutomation
 
         // Log summary
         $summary = "Cron Automation Summary: Processed {$processed_count} orders, {$success_count} successful, {$error_count} failed";
-        error_log('Aramex Automation: ' . $summary);
 
         // Store results for admin display
         $cron_results = [

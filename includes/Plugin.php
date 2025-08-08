@@ -149,9 +149,7 @@ class Plugin
                     if (!$order) {
                         return;
                     }
-                    error_log('Aramex Automation: Status changed ' . $old_status . ' -> ' . $new_status . ' for order #' . $order_id);
                     $tracking_number = $order->get_meta('_aramex_tracking_number');
-                    error_log('Aramex Automation: Tracking meta ' . ($tracking_number ? 'found' : 'missing') . ' for order #' . $order_id);
                     if (!$tracking_number) {
                         // Try to hydrate tracking from order notes (e.g., "AWB No. 123 - Order No. 456")
                         if (function_exists('wc_get_order_notes')) {
@@ -162,7 +160,6 @@ class Plugin
                                     $tracking_number = $m[1];
                                     $order->update_meta_data('_aramex_tracking_number', $tracking_number);
                                     $order->save();
-                                    error_log('Aramex Automation: Hydrated tracking from note for order #' . $order_id . ' -> ' . $tracking_number);
                                     break;
                                 }
                             }
@@ -193,7 +190,6 @@ class Plugin
                     return;
                 }
                 $tracking_number = $order->get_meta('_aramex_tracking_number');
-                error_log('Aramex Automation: Direct awaiting-shipment hook for order #' . $order_id . ' tracking ' . ($tracking_number ? 'found' : 'missing'));
                 if (!$tracking_number) {
                     if (function_exists('wc_get_order_notes')) {
                         $notes = wc_get_order_notes(['order_id' => $order_id]);
@@ -203,7 +199,6 @@ class Plugin
                                 $tracking_number = $m[1];
                                 $order->update_meta_data('_aramex_tracking_number', $tracking_number);
                                 $order->save();
-                                error_log('Aramex Automation: Hydrated tracking from note (direct hook) for order #' . $order_id . ' -> ' . $tracking_number);
                                 break;
                             }
                         }

@@ -20,7 +20,6 @@ class ShipmentCreator
             // Check if shipment creation is already in progress for this order
             $shipment_key = 'aramex_shipment_in_progress_' . $order->get_id();
             if (get_transient($shipment_key)) {
-                error_log('Aramex Automation: Shipment creation already in progress for order #' . $order->get_id());
                 return [
                     'success' => false,
                     'message' => 'Shipment creation already in progress for this order. Please wait.'

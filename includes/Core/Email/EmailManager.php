@@ -20,9 +20,6 @@ class EmailManager
         
         // Add a test action to verify email class is working
         add_action('admin_init', [$this, 'testEmailClass']);
-        
-        // Log that EmailManager is being initialized
-        error_log('Aramex Automation: EmailManager initialized');
     }
 
 
@@ -67,22 +64,15 @@ class EmailManager
      */
     public function addEmailClass($emailClasses)
     {
-        // Check if WooCommerce is active
-        if (!class_exists('WooCommerce')) {
-            error_log('Aramex Automation: WooCommerce not active when adding email class');
-            return $emailClasses;
-        }
-        
-        // Check if WC_Email class exists
-        if (!class_exists('WC_Email')) {
-            error_log('Aramex Automation: WC_Email class not found when adding email class');
+        // Ensure WooCommerce and WC_Email are available
+        if (!class_exists('WooCommerce') || !class_exists('WC_Email')) {
             return $emailClasses;
         }
         
         try {
             $emailClasses['aramex_shipment'] = new WC_Email_Aramex_Shipment();
-            error_log('Aramex Automation: Email class added to WooCommerce successfully');
         } catch (\Throwable $e) {
+            // Keep failure log only
             error_log('Aramex Automation: Failed to add email class: ' . $e->getMessage());
         }
         return $emailClasses;
@@ -96,22 +86,16 @@ class EmailManager
         // Check if email was already sent for this tracking number
         $email_sent_key = 'aramex_email_sent_' . $order->get_id() . '_' . $tracking_number;
         if (get_transient($email_sent_key)) {
-            error_log('Aramex Automation: Email already sent for order #' . $order->get_id() . ' with tracking #' . $tracking_number);
             return true;
         }
 
         try {
-            // Log that we're attempting to send email
-            error_log('Aramex Automation: Attempting to send email for order #' . $order->get_id() . ' with tracking #' . $tracking_number);
-            
             // Get the email instance
             $mailer = WC()->mailer();
             $emails = $mailer->get_emails();
             $email = $emails['aramex_shipment'] ?? null;
 
             if ($email) {
-                error_log('Aramex Automation: Email class found, triggering email for order #' . $order->get_id());
-                
                 // Trigger the email
                 $email->trigger($order->get_id(), $order, $tracking_number);
                 
@@ -119,19 +103,15 @@ class EmailManager
                 set_transient($email_sent_key, true, HOUR_IN_SECONDS);
                 
                 $order->add_order_note('Tracking information email sent to customer');
-                
-                error_log('Aramex Automation: Email sent successfully for order #' . $order->get_id());
                 return true;
             } else {
                 error_log('Aramex Automation: Email class not found in mailer. Available emails: ' . implode(', ', array_keys($emails)));
                 
                 // Fallback: Try using the simple CustomerEmail class
-                error_log('Aramex Automation: Trying fallback email method');
                 $customer_email = new CustomerEmail();
                 $result = $customer_email->sendCustomerEmail($order, $tracking_number);
                 
                 if ($result) {
-                    error_log('Aramex Automation: Fallback email sent successfully');
                     return true;
                 } else {
                     error_log('Aramex Automation: Fallback email also failed');
