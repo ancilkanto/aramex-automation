@@ -3,6 +3,7 @@
 namespace AramexAutomation\Core\Shipment;
 
 use AramexAutomation\Core\Shipment\Api\AramexApi;
+use AramexAutomation\Core\Email\EmailManager;
 
 /**
  * Pickup Scheduler
@@ -23,6 +24,14 @@ class PickupScheduler
                 $pickup_note = "Pickup scheduled successfully. Pickup ID: " . $result['pickup_id'];
                 $order->add_order_note($pickup_note);
                 
+                // If email trigger is set to status_change, proactively send email here as well (guarded by transient)
+                if (
+                    get_option('aramex_automation_auto_email', '1') == '1' &&
+                    get_option('aramex_automation_email_trigger', 'creation') === 'status_change'
+                ) {
+                    EmailManager::sendShipmentEmail($order, $tracking_number);
+                }
+
                 // Change order status to "awaiting shipment" or fallback to "processing"
                 $this->updateOrderStatusToAwaitingShipment($order);
                 

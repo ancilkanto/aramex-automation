@@ -127,5 +127,94 @@ class Plugin
         // Register custom order status
         add_action('init', [$this, 'registerCustomOrderStatus']);
         add_filter('wc_order_statuses', [$this, 'addCustomOrderStatus']);
+
+        // Hook: send shipment email when status changes to awaiting-shipment (configurable)
+        add_action('woocommerce_order_status_changed', function ($order_id, $old_status, $new_status, $order) {
+            try {
+                // Only proceed if auto email is enabled and trigger is set to 'status_change'
+                if (
+                    get_option('aramex_automation_auto_email', '1') !== '1' ||
+                    get_option('aramex_automation_email_trigger', 'creation') !== 'status_change'
+                ) {
+                    return;
+                }
+
+                // Normalize status slugs
+                $old_status = ltrim((string)$old_status, 'wc-');
+                $new_status = ltrim((string)$new_status, 'wc-');
+
+                // Send when new status becomes awaiting-shipment regardless of previous
+                if ($new_status === 'awaiting-shipment' && $old_status !== $new_status) {
+                    $order = wc_get_order($order_id);
+                    if (!$order) {
+                        return;
+                    }
+                    error_log('Aramex Automation: Status changed ' . $old_status . ' -> ' . $new_status . ' for order #' . $order_id);
+                    $tracking_number = $order->get_meta('_aramex_tracking_number');
+                    error_log('Aramex Automation: Tracking meta ' . ($tracking_number ? 'found' : 'missing') . ' for order #' . $order_id);
+                    if (!$tracking_number) {
+                        // Try to hydrate tracking from order notes (e.g., "AWB No. 123 - Order No. 456")
+                        if (function_exists('wc_get_order_notes')) {
+                            $notes = wc_get_order_notes(['order_id' => $order_id]);
+                            foreach ($notes as $note) {
+                                $content = is_object($note) && isset($note->content) ? $note->content : (string)$note;
+                                if (preg_match('/AWB\s*No\.\s*(\d+)/i', $content, $m)) {
+                                    $tracking_number = $m[1];
+                                    $order->update_meta_data('_aramex_tracking_number', $tracking_number);
+                                    $order->save();
+                                    error_log('Aramex Automation: Hydrated tracking from note for order #' . $order_id . ' -> ' . $tracking_number);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if ($tracking_number) {
+                        \AramexAutomation\Core\Email\EmailManager::sendShipmentEmail($order, $tracking_number);
+                    } else {
+                        // If tracking not found, do nothing; shipment might not have been created
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Silent fail; avoid breaking status transitions
+            }
+        }, 10, 4);
+
+        // Direct hook on status transition target for reliability
+        add_action('woocommerce_order_status_awaiting-shipment', function ($order_id) {
+            try {
+                if (
+                    get_option('aramex_automation_auto_email', '1') !== '1' ||
+                    get_option('aramex_automation_email_trigger', 'creation') !== 'status_change'
+                ) {
+                    return;
+                }
+                $order = wc_get_order($order_id);
+                if (!$order) {
+                    return;
+                }
+                $tracking_number = $order->get_meta('_aramex_tracking_number');
+                error_log('Aramex Automation: Direct awaiting-shipment hook for order #' . $order_id . ' tracking ' . ($tracking_number ? 'found' : 'missing'));
+                if (!$tracking_number) {
+                    if (function_exists('wc_get_order_notes')) {
+                        $notes = wc_get_order_notes(['order_id' => $order_id]);
+                        foreach ($notes as $note) {
+                            $content = is_object($note) && isset($note->content) ? $note->content : (string)$note;
+                            if (preg_match('/AWB\s*No\.\s*(\d+)/i', $content, $m)) {
+                                $tracking_number = $m[1];
+                                $order->update_meta_data('_aramex_tracking_number', $tracking_number);
+                                $order->save();
+                                error_log('Aramex Automation: Hydrated tracking from note (direct hook) for order #' . $order_id . ' -> ' . $tracking_number);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if ($tracking_number) {
+                    \AramexAutomation\Core\Email\EmailManager::sendShipmentEmail($order, $tracking_number);
+                }
+            } catch (\Throwable $e) {
+                // Silent fail
+            }
+        });
     }
 } 

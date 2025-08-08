@@ -41,8 +41,11 @@ class ShipmentCreator
             if ($result['success']) {
                 $this->updateOrderShipment($order, $result['tracking']);
                 
-                // Send email to customer if enabled
-                if (get_option('aramex_automation_auto_email', '1') == '1') {
+                // Send email to customer if enabled and trigger is set to 'creation'
+                if (
+                    get_option('aramex_automation_auto_email', '1') == '1'
+                    && get_option('aramex_automation_email_trigger', 'creation') === 'creation'
+                ) {
                     EmailManager::sendShipmentEmail($order, $result['tracking']);
                 }
                 
@@ -211,6 +214,10 @@ class ShipmentCreator
         // Add order note with tracking number (same format as original plugin)
         $note_content = "AWB No. " . $tracking_number . " - Order No. " . $order->get_id();
         $order->add_order_note($note_content);
+        
+        // Persist tracking number to order meta for later use (e.g., email on status change)
+        $order->update_meta_data('_aramex_tracking_number', $tracking_number);
+        $order->save();
         
         // Don't change status here - it will be changed to "awaiting shipment" after pickup scheduling
         // The status will be managed by the PickupScheduler

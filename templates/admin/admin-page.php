@@ -87,6 +87,19 @@ if ($recent_result) {
                         </tr>
                         <tr>
                             <th scope="row">
+                                <label for="email_trigger">Email Trigger</label>
+                            </th>
+                            <td>
+                                <?php $email_trigger = get_option('aramex_automation_email_trigger', 'creation'); ?>
+                                <select id="email_trigger" name="email_trigger">
+                                    <option value="creation" <?php selected($email_trigger, 'creation'); ?>>Send on shipment creation</option>
+                                    <option value="status_change" <?php selected($email_trigger, 'status_change'); ?>>Send when status changes from On Hold to Awaiting Shipment</option>
+                                </select>
+                                <p class="description">Choose when the customer shipment email should be sent.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
                                 <label for="pickup_date">Pickup Date</label>
                             </th>
                             <td>

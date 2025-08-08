@@ -32,7 +32,7 @@ do_action('woocommerce_email_header', $email_heading, $email);
                 <strong><?php esc_html_e('Tracking Number:', 'aramex-automation'); ?></strong>
             </td>
             <td class="td" scope="row" style="text-align: left; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
-                <a href="https://www.aramex.com/track/<?php echo esc_attr($tracking_number); ?>" target="_blank"><?php echo esc_html($tracking_number); ?></a>
+                <a href="<?php echo esc_url( 'https://www.aramex.com/us/en/track/results?source=aramex&ShipmentNumber=' . urlencode((string) $tracking_number) ); ?>" target="_blank"><?php echo esc_html($tracking_number); ?></a>
             </td>
         </tr>
         <tr>

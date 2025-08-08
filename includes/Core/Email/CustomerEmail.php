@@ -64,7 +64,7 @@ class CustomerEmail
         // Email content
         $customer_name = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
         $order_total = $order->get_formatted_order_total();
-        $tracking_url = 'https://www.aramex.com/track/' . $tracking_number;
+        $tracking_url = 'https://www.aramex.com/us/en/track/results?source=aramex&ShipmentNumber=' . rawurlencode((string) $tracking_number);
         
         ?>
         <p><?php printf(esc_html__('Hi %s,', 'woocommerce'), esc_html($customer_name)); ?></p>

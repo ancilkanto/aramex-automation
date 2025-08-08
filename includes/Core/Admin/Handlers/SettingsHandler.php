@@ -83,6 +83,16 @@ class SettingsHandler
             update_option('aramex_automation_pickup_location', sanitize_text_field($_POST['pickup_location']));
         }
 
+        // Save email trigger
+        if (isset($_POST['email_trigger'])) {
+            $allowed = ['creation', 'status_change'];
+            $value = sanitize_text_field($_POST['email_trigger']);
+            if (!in_array($value, $allowed, true)) {
+                $value = 'creation';
+            }
+            update_option('aramex_automation_email_trigger', $value);
+        }
+
         // Save non-working days settings
         $non_working_days = [];
         $days_of_week = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
