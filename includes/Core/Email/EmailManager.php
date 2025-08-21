@@ -52,7 +52,7 @@ class EmailManager
         
         if (!isset($emails['aramex_shipment'])) {
             try {
-                $mailer->emails['aramex_shipment'] = new WC_Email_Aramex_Shipment();
+                $mailer->emails['aramex_shipment'] = new WCEmailAramexShipment();
             } catch (\Throwable $e) {
                 // Silent fail - email class will be added later if needed
             }
@@ -70,7 +70,7 @@ class EmailManager
         }
         
         try {
-            $emailClasses['aramex_shipment'] = new WC_Email_Aramex_Shipment();
+            $emailClasses['aramex_shipment'] = new WCEmailAramexShipment();
         } catch (\Throwable $e) {
             // Keep failure log only
             error_log('Aramex Automation: Failed to add email class: ' . $e->getMessage());
@@ -81,11 +81,11 @@ class EmailManager
     /**
      * Send Aramex shipment email
      */
-    public static function sendShipmentEmail($order, $tracking_number)
+    public static function sendShipmentEmail($order, $trackingNumber)
     {
         // Check if email was already sent for this tracking number
-        $email_sent_key = 'aramex_email_sent_' . $order->get_id() . '_' . $tracking_number;
-        if (get_transient($email_sent_key)) {
+        $emailSentKey = 'aramex_email_sent_' . $order->get_id() . '_' . $trackingNumber;
+        if (get_transient($emailSentKey)) {
             return true;
         }
 
@@ -97,10 +97,10 @@ class EmailManager
 
             if ($email) {
                 // Trigger the email
-                $email->trigger($order->get_id(), $order, $tracking_number);
+                $email->trigger($order->get_id(), $order, $trackingNumber);
                 
                 // Set transient to prevent duplicate emails (expires in 1 hour)
-                set_transient($email_sent_key, true, HOUR_IN_SECONDS);
+                set_transient($emailSentKey, true, HOUR_IN_SECONDS);
                 
                 $order->add_order_note('Tracking information email sent to customer');
                 return true;
@@ -108,8 +108,8 @@ class EmailManager
                 error_log('Aramex Automation: Email class not found in mailer. Available emails: ' . implode(', ', array_keys($emails)));
                 
                 // Fallback: Try using the simple CustomerEmail class
-                $customer_email = new CustomerEmail();
-                $result = $customer_email->sendCustomerEmail($order, $tracking_number);
+                $customerEmail = new CustomerEmail();
+                $result = $customerEmail->sendCustomerEmail($order, $trackingNumber);
                 
                 if ($result) {
                     return true;

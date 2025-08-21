@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 }
 
 if (class_exists('\\WC_Email')) {
-    class WC_Email_Aramex_Shipment extends \WC_Email
+    class WCEmailAramexShipment extends \WC_Email
     {
         /**
          * Constructor
@@ -47,18 +47,26 @@ if (class_exists('\\WC_Email')) {
         }
 
         /**
+         * Get heading with bilingual support.
+         */
+        public function get_heading()
+        {
+            return apply_filters('woocommerce_email_heading_' . $this->id, $this->format_string($this->get_option('heading')), $this->object);
+        }
+
+        /**
          * Trigger the sending of this email.
          *
-         * @param int $order_id
+         * @param int $orderId
          * @param \WC_Order|false $order
-         * @param string $tracking_number
+         * @param string $trackingNumber
          */
-        public function trigger($order_id, $order = false, $tracking_number = '')
+        public function trigger($orderId, $order = false, $trackingNumber = '')
         {
             $this->setup_locale();
 
-            if ($order_id && !is_a($order, '\\WC_Order')) {
-                $order = wc_get_order($order_id);
+            if ($orderId && !is_a($order, '\\WC_Order')) {
+                $order = wc_get_order($orderId);
             }
 
             if (is_a($order, '\\WC_Order')) {
@@ -69,7 +77,7 @@ if (class_exists('\\WC_Email')) {
                 $this->find['order-date'] = '{order_date}';
                 $this->replace['order-date'] = wc_format_datetime($this->object->get_date_created());
                 $this->find['tracking-number'] = '{tracking_number}';
-                $this->replace['tracking-number'] = $tracking_number;
+                $this->replace['tracking-number'] = $trackingNumber;
 
                 if (empty($this->replace['tracking-number'])) {
                     $metaTracking = $this->object->get_meta('_aramex_tracking_number');
@@ -108,6 +116,7 @@ if (class_exists('\\WC_Email')) {
                 array(
                     'order' => $this->object,
                     'email_heading' => $this->get_heading(),
+                    'email_heading_arabic' => $this->get_option('heading_arabic'),
                     'sent_to_admin' => false,
                     'plain_text' => false,
                     'email' => $this,
@@ -132,6 +141,7 @@ if (class_exists('\\WC_Email')) {
                 array(
                     'order' => $this->object,
                     'email_heading' => $this->get_heading(),
+                    'email_heading_arabic' => $this->get_option('heading_arabic'),
                     'sent_to_admin' => false,
                     'plain_text' => true,
                     'email' => $this,
@@ -181,6 +191,13 @@ if (class_exists('\\WC_Email')) {
                     'placeholder' => $this->get_default_heading(),
                     'default' => '',
                 ),
+                'heading_arabic' => array(
+                    'title' => __('Email heading (Arabic)', 'aramex-automation'),
+                    'type' => 'text',
+                    'description' => __('Arabic version of the email heading', 'aramex-automation'),
+                    'placeholder' => __('Arabic heading here', 'aramex-automation'),
+                    'default' => '',
+                ),
                 'email_type' => array(
                     'title' => __('Email type', 'woocommerce'),
                     'type' => 'select',
@@ -191,7 +208,7 @@ if (class_exists('\\WC_Email')) {
                 ),
             );
         }
+
+
     }
 }
-
-

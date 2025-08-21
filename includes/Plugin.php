@@ -121,6 +121,7 @@ class Plugin
         new Core\Shipment\ShipmentCreator();
         new Core\Shipment\PickupScheduler();
         new Core\Email\EmailManager();
+
         new Core\Logging\ShipmentLogger();
         new Core\Cron\CronAutomation();
         

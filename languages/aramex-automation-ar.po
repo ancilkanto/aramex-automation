@@ -1,0 +1,56 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Aramex Automation\n"
+"POT-Creation-Date: 2025-01-12 10:00+0000\n"
+"PO-Revision-Date: 2025-01-12 10:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#: includes/Core/Email/WCEmailAramexShipment.php:175
+msgid "Email heading (Arabic)"
+msgstr "عنوان البريد الإلكتروني (العربية)"
+
+#: includes/Core/Email/WCEmailAramexShipment.php:176
+msgid "Arabic version of the email heading"
+msgstr "الإصدار العربي من عنوان البريد الإلكتروني"
+
+#: includes/Core/Email/WCEmailAramexShipment.php:177
+msgid "Arabic heading here"
+msgstr "العنوان العربي هنا"
+
+#: templates/emails/aramex-shipment.php:28
+msgid "مرحباً %s،"
+msgstr "مرحباً %s،"
+
+#: templates/emails/aramex-shipment.php:29
+msgid "أخبار رائعة! طلبك رقم #%s تم شحنه وهو في طريقه إليك."
+msgstr "أخبار رائعة! طلبك رقم #%s تم شحنه وهو في طريقه إليك."
+
+#: templates/emails/aramex-shipment.php:35
+msgid "معلومات التتبع"
+msgstr "معلومات التتبع"
+
+#: templates/emails/aramex-shipment.php:42
+msgid "رقم التتبع:"
+msgstr "رقم التتبع:"
+
+#: templates/emails/aramex-shipment.php:50
+msgid "إجمالي الطلب:"
+msgstr "إجمالي الطلب:"
+
+#: templates/emails/aramex-shipment.php:58
+msgid "تاريخ الطلب:"
+msgstr "تاريخ الطلب:"
+
+#: templates/emails/aramex-shipment.php:66
+msgid "يمكنك تتبع شحنتك باستخدام رقم التتبع أعلاه من خلال موقع أرامكس."
+msgstr "يمكنك تتبع شحنتك باستخدام رقم التتبع أعلاه من خلال موقع أرامكس."
+
+#: templates/emails/aramex-shipment.php:67
+msgid "شكراً لك على طلبك!"
+msgstr "شكراً لك على طلبك!"
