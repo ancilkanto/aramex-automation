@@ -9,6 +9,10 @@ A WordPress plugin for automating Aramex shipment creation in WooCommerce.
 - **Single & Bulk Operations**: Create shipments for individual or multiple orders
 - **Automatic Pickup Scheduling**: Schedule pickups after shipment creation
 - **Customer Email Notifications**: Send tracking information to customers
+- **Custom Order Statuses**: "Awaiting Shipment", "Shipped", and "Completed" statuses
+- **Order Shipped Email**: Automatic email when order status changes to "Shipped"
+- **Shipment Status Tracking**: Automatic tracking of Aramex shipments and order status updates
+- **Cron Automation**: Daily cron job for shipment creation, pickup scheduling, and status tracking
 - **Comprehensive Logging**: Track all shipment attempts and results
 
 ## Requirements
@@ -58,11 +62,19 @@ aramex-automation/
 │       └── Logging/             # Logging functionality
 │           └── ShipmentLogger.php
 ├── templates/                   # Template files
-│   └── admin/
-│       └── admin-page.php
+│   ├── admin/
+│   │   └── admin-page.php
+│   └── emails/
+│       ├── awaiting-shipment.php
+│       ├── order-shipped.php
+│       └── plain/
+│           ├── awaiting-shipment.php
+│           └── order-shipped.php
 ├── assets/                      # Frontend assets
 │   └── js/
 │       └── main.js
+├── examples/                    # Example implementations
+│   └── aramex-after-pickup-hook-example.php
 └── vendor/                      # Composer dependencies
 ```
 
@@ -101,6 +113,38 @@ http://your-site.com/wp-admin/admin.php?page=aramex-shipment-automation&create-s
 The plugin requires the **Aramex Shipping WooCommerce** plugin to be active. It will display an admin notice if the dependency is missing.
 
 ## Development
+
+### Custom WordPress Hooks
+
+The plugin provides several custom WordPress hooks for developers to extend functionality:
+
+#### `aramex_after_pickup_schedule`
+- **Triggered**: After successful pickup scheduling with Aramex
+- **Parameters**: 
+  - `$order` (WC_Order) - The WooCommerce order object
+  - `$tracking_number` (string) - The Aramex tracking number
+  - `$pickup_id` (string) - The Aramex pickup ID
+- **Use Case**: Hook into this action to create sequential processes after pickup scheduling
+- **Example**:
+  ```php
+  add_action('aramex_after_pickup_schedule', 'my_custom_function', 10, 3);
+  
+  function my_custom_function($order, $tracking_number, $pickup_id) {
+      // Your custom logic here
+      $order_id = $order->get_id();
+      // Send notifications, update external systems, etc.
+  }
+  ```
+
+#### `aramex_automation_daily_cron`
+- **Triggered**: Daily via cron job to process orders automatically
+- **Use Case**: Hook into this action for custom cron processing
+- **Example**:
+  ```php
+  add_action('aramex_automation_daily_cron', 'my_custom_cron_function');
+  ```
+
+See the `examples/` directory for complete implementation examples.
 
 ### Adding New Features
 

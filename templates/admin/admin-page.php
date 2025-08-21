@@ -293,10 +293,43 @@ if ($recent_result) {
                     <?php endif; ?>
                     <?php endif; ?>
 
+                    <?php
+                    $status_check_results = get_transient('aramex_automation_status_check_results');
+                    if ($status_check_results): ?>
+                    <h4>Last Status Check Results (<?php echo esc_html($status_check_results['timestamp']); ?>)</h4>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">Orders Checked</th>
+                            <td><?php echo esc_html($status_check_results['processed_count']); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Status Updates</th>
+                            <td><span class="success-count"><?php echo esc_html($status_check_results['status_updates']); ?></span></td>
+                        </tr>
+                        <?php if (!empty($status_check_results['errors'])): ?>
+                        <tr>
+                            <th scope="row">Errors</th>
+                            <td><span class="error-count"><?php echo esc_html(count($status_check_results['errors'])); ?></span></td>
+                        </tr>
+                        <?php endif; ?>
+                    </table>
+
+                    <?php if (!empty($status_check_results['errors'])): ?>
+                    <h4>Status Check Errors</h4>
+                    <div class="error-list">
+                        <?php foreach ($status_check_results['errors'] as $error): ?>
+                            <div class="error-item"><?php echo esc_html($error); ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php endif; ?>
+
                     <p>
                         <a href="<?php echo admin_url('admin.php?page=aramex-shipment-automation&tab=settings&trigger_cron=1'); ?>" 
-                           class="button button-secondary">Test Automation Now</a>
-                        <span class="description">Manually trigger the automation to test it.</span>
+                           class="button button-secondary"><?php esc_html_e('Test Automation Now', 'aramex-automation'); ?></a>                    
+                           <span style="padding: 0 10px;"></span>
+                        <a href="<?php echo admin_url('admin.php?page=aramex-shipment-automation&tab=settings&check_status=1'); ?>" 
+                           class="button button-secondary"><?php esc_html_e('Check Shipment Status', 'aramex-automation'); ?></a>
                     </p>
                 </div>
             </div>

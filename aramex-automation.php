@@ -17,6 +17,23 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Custom WordPress Hooks
+ * 
+ * This plugin provides the following custom hooks for developers:
+ * 
+ * 1. aramex_after_pickup_schedule
+ *    - Triggered after successful pickup scheduling with Aramex
+ *    - Parameters: $order (WC_Order), $tracking_number (string), $pickup_id (string)
+ *    - Use case: Hook into this action to create sequential processes after pickup scheduling
+ *    - Example: add_action('aramex_after_pickup_schedule', 'my_custom_function', 10, 3);
+ * 
+ * 2. aramex_automation_daily_cron
+ *    - Triggered daily via cron job to process orders automatically
+ *    - Use case: Hook into this action for custom cron processing
+ *    - Example: add_action('aramex_automation_daily_cron', 'my_custom_cron_function');
+ */
+
 // Define plugin constants
 define('ARAMEX_AUTOMATION_VERSION', '1.0.0');
 define('ARAMEX_AUTOMATION_PLUGIN_URL', plugin_dir_url(__FILE__));

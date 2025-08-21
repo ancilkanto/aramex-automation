@@ -15,7 +15,7 @@ The Aramex Automation plugin now supports bilingual email templates with English
 
 ### 1. Email Settings
 1. Go to **WooCommerce > Settings > Emails**
-2. Click on **Aramex Shipment** email
+2. Click on **Awaiting Shipment** email
 3. You'll see two new fields:
    - **Email heading**: English version (existing)
    - **Email heading (Arabic)**: Arabic version (new)

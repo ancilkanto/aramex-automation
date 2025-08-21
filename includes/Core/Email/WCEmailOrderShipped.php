@@ -7,24 +7,24 @@ if (!defined('ABSPATH')) {
 }
 
 if (class_exists('\\WC_Email')) {
-    class WCEmailAramexShipment extends \WC_Email
+    class WCEmailOrderShipped extends \WC_Email
     {
         /**
          * Constructor
          */
         public function __construct()
         {
-            $this->id = 'aramex_shipment';
+            $this->id = 'order_shipped';
             $this->customer_email = true;
-            $this->title = __('Awaiting Shipment', 'aramex-automation');
-            $this->description = __('This email is sent to customers when an order is awaiting shipment.', 'aramex-automation');
-            $this->template_html = 'emails/awaiting-shipment.php';
-            $this->template_plain = 'emails/plain/awaiting-shipment.php';
+            $this->title = __('Order Shipped', 'aramex-automation');
+            $this->description = __('This email is sent to customers when their order has been shipped.', 'aramex-automation');
+            $this->template_html = 'emails/order-shipped.php';
+            $this->template_plain = 'emails/plain/order-shipped.php';
             $this->template_base = ARAMEX_AUTOMATION_PLUGIN_PATH . 'templates/';
 
             parent::__construct();
 
-            $this->subject = __('Your order #{order_number} has been shipped', 'aramex-automation');
+            $this->subject = __('Your order #{order_number} has been shipped!', 'aramex-automation');
             $this->heading = __('Your order has been shipped!', 'aramex-automation');
 
             add_filter('woocommerce_email_enabled_' . $this->id, '__return_true');
@@ -208,7 +208,5 @@ if (class_exists('\\WC_Email')) {
                 ),
             );
         }
-
-
     }
 }

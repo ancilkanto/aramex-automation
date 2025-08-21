@@ -24,16 +24,14 @@ class PickupScheduler
                 $pickup_note = "Pickup scheduled successfully. Pickup ID: " . $result['pickup_id'];
                 $order->add_order_note($pickup_note);
                 
-                // If email trigger is set to status_change, proactively send email here as well (guarded by transient)
-                if (
-                    get_option('aramex_automation_auto_email', '1') == '1' &&
-                    get_option('aramex_automation_email_trigger', 'creation') === 'status_change'
-                ) {
-                    EmailManager::sendShipmentEmail($order, $tracking_number);
-                }
+                // Note: Email sending is now handled by the status change hooks in Plugin.php
+                // This prevents duplicate emails from being sent
 
                 // Change order status to "awaiting shipment" or fallback to "processing"
                 $this->updateOrderStatusToAwaitingShipment($order);
+                
+                // Trigger custom hook after successful pickup scheduling
+                do_action('aramex_after_pickup_schedule', $order, $tracking_number, $result['pickup_id']);
                 
             } else {
                 // Log pickup failure

@@ -72,7 +72,7 @@ class Plugin
     }
     
     /**
-     * Register custom order status for awaiting shipment
+     * Register custom order statuses
      */
     public function registerCustomOrderStatus()
     {
@@ -85,6 +85,16 @@ class Plugin
             'show_in_admin_status_list' => true,
             'label_count' => _n_noop('Awaiting Shipment <span class="count">(%s)</span>', 'Awaiting Shipment <span class="count">(%s)</span>', 'aramex-automation')
         ));
+        
+        // Register the "shipped" status
+        register_post_status('shipped', array(
+            'label' => _x('Shipped', 'Order status', 'aramex-automation'),
+            'public' => true,
+            'exclude_from_search' => false,
+            'show_in_admin_all_list' => true,
+            'show_in_admin_status_list' => true,
+            'label_count' => _n_noop('Shipped <span class="count">(%s)</span>', 'Shipped <span class="count">(%s)</span>', 'aramex-automation')
+        ));
     }
     
     /**
@@ -93,6 +103,7 @@ class Plugin
     public function addCustomOrderStatus($order_statuses)
     {
         $order_statuses['wc-awaiting-shipment'] = _x('Awaiting Shipment', 'Order status', 'aramex-automation');
+        $order_statuses['wc-shipped'] = _x('Shipped', 'Order status', 'aramex-automation');
         return $order_statuses;
     }
 
@@ -129,53 +140,8 @@ class Plugin
         add_action('init', [$this, 'registerCustomOrderStatus']);
         add_filter('wc_order_statuses', [$this, 'addCustomOrderStatus']);
 
-        // Hook: send shipment email when status changes to awaiting-shipment (configurable)
-        add_action('woocommerce_order_status_changed', function ($order_id, $old_status, $new_status, $order) {
-            try {
-                // Only proceed if auto email is enabled and trigger is set to 'status_change'
-                if (
-                    get_option('aramex_automation_auto_email', '1') !== '1' ||
-                    get_option('aramex_automation_email_trigger', 'creation') !== 'status_change'
-                ) {
-                    return;
-                }
-
-                // Normalize status slugs
-                $old_status = ltrim((string)$old_status, 'wc-');
-                $new_status = ltrim((string)$new_status, 'wc-');
-
-                // Send when new status becomes awaiting-shipment regardless of previous
-                if ($new_status === 'awaiting-shipment' && $old_status !== $new_status) {
-                    $order = wc_get_order($order_id);
-                    if (!$order) {
-                        return;
-                    }
-                    $tracking_number = $order->get_meta('_aramex_tracking_number');
-                    if (!$tracking_number) {
-                        // Try to hydrate tracking from order notes (e.g., "AWB No. 123 - Order No. 456")
-                        if (function_exists('wc_get_order_notes')) {
-                            $notes = wc_get_order_notes(['order_id' => $order_id]);
-                            foreach ($notes as $note) {
-                                $content = is_object($note) && isset($note->content) ? $note->content : (string)$note;
-                                if (preg_match('/AWB\s*No\.\s*(\d+)/i', $content, $m)) {
-                                    $tracking_number = $m[1];
-                                    $order->update_meta_data('_aramex_tracking_number', $tracking_number);
-                                    $order->save();
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if ($tracking_number) {
-                        \AramexAutomation\Core\Email\EmailManager::sendShipmentEmail($order, $tracking_number);
-                    } else {
-                        // If tracking not found, do nothing; shipment might not have been created
-                    }
-                }
-            } catch (\Throwable $e) {
-                // Silent fail; avoid breaking status transitions
-            }
-        }, 10, 4);
+        // Note: Email sending for "awaiting-shipment" status is handled by the specific hook below
+        // This prevents duplicate emails from being sent
 
         // Direct hook on status transition target for reliability
         add_action('woocommerce_order_status_awaiting-shipment', function ($order_id) {
@@ -207,6 +173,36 @@ class Plugin
                 }
                 if ($tracking_number) {
                     \AramexAutomation\Core\Email\EmailManager::sendShipmentEmail($order, $tracking_number);
+                }
+            } catch (\Throwable $e) {
+                // Silent fail
+            }
+        });
+        
+        // Hook for "shipped" status to send "Order Shipped" email
+        add_action('woocommerce_order_status_shipped', function ($order_id) {
+            try {
+                $order = wc_get_order($order_id);
+                if (!$order) {
+                    return;
+                }
+                $tracking_number = $order->get_meta('_aramex_tracking_number');
+                if (!$tracking_number) {
+                    if (function_exists('wc_get_order_notes')) {
+                        $notes = wc_get_order_notes(['order_id' => $order_id]);
+                        foreach ($notes as $note) {
+                            $content = is_object($note) && isset($note->content) ? $note->content : (string)$note;
+                            if (preg_match('/AWB\s*No\.\s*(\d+)/i', $content, $m)) {
+                                $tracking_number = $m[1];
+                                $order->update_meta_data('_aramex_tracking_number', $tracking_number);
+                                $order->save();
+                                break;
+                            }
+                        }
+                    }
+                }
+                if ($tracking_number) {
+                    \AramexAutomation\Core\Email\EmailManager::sendOrderShippedEmail($order, $tracking_number);
                 }
             } catch (\Throwable $e) {
                 // Silent fail

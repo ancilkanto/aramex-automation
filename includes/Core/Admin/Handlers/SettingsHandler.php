@@ -32,6 +32,18 @@ class SettingsHandler
             }
         }
 
+        // Handle manual shipment status check
+        if (isset($_GET['check_status']) && $_GET['check_status'] === '1') {
+            if (current_user_can('manage_woocommerce')) {
+                $result = \AramexAutomation\Core\Cron\CronAutomation::triggerStatusCheckManually();
+                $this->addAdminNotice($result['message'], 'success');
+                
+                // Redirect back to settings tab
+                wp_redirect(admin_url('admin.php?page=aramex-shipment-automation&tab=settings'));
+                exit;
+            }
+        }
+
         if (!isset($_POST['aramex_automation_settings_action'])) {
             return;
         }

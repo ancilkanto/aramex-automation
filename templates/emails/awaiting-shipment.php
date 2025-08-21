@@ -2,7 +2,7 @@
 /**
  * Awaiting Shipment email
  *
- * This template can be overridden by copying it to yourtheme/woocommerce/emails/aramex-shipment.php.
+ * This template can be overridden by copying it to yourtheme/woocommerce/emails/awaiting-shipment.php.
  *
  * @see https://docs.woocommerce.com/document/template-structure/
  * @package AramexAutomation

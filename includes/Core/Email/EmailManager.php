@@ -2,6 +2,9 @@
 
 namespace AramexAutomation\Core\Email;
 
+use AramexAutomation\Core\Email\WCEmailAramexShipment;
+use AramexAutomation\Core\Email\WCEmailOrderShipped;
+
 /**
  * Email Manager
  */
@@ -33,11 +36,12 @@ class EmailManager
             $mailer = WC()->mailer();
             $emails = $mailer->get_emails();
             
-            if (isset($emails['aramex_shipment'])) {
-                wp_die('SUCCESS: aramex_shipment email class found in mailer');
-            } else {
-                wp_die('ERROR: aramex_shipment email class NOT found in mailer');
-            }
+            $aramex_shipment = isset($emails['aramex_shipment']) ? 'FOUND' : 'NOT FOUND';
+            $order_shipped = isset($emails['order_shipped']) ? 'FOUND' : 'NOT FOUND';
+            
+            wp_die("Email Classes Status:<br>
+                    aramex_shipment: {$aramex_shipment}<br>
+                    order_shipped: {$order_shipped}");
         }
     }
     
@@ -57,6 +61,14 @@ class EmailManager
                 // Silent fail - email class will be added later if needed
             }
         }
+        
+        if (!isset($emails['order_shipped'])) {
+            try {
+                $mailer->emails['order_shipped'] = new WCEmailOrderShipped();
+            } catch (\Throwable $e) {
+                // Silent fail - email class will be added later if needed
+            }
+        }
     }
 
     /**
@@ -71,6 +83,7 @@ class EmailManager
         
         try {
             $emailClasses['aramex_shipment'] = new WCEmailAramexShipment();
+            $emailClasses['order_shipped'] = new WCEmailOrderShipped();
         } catch (\Throwable $e) {
             // Keep failure log only
             error_log('Aramex Automation: Failed to add email class: ' . $e->getMessage());
@@ -121,6 +134,43 @@ class EmailManager
         } catch (\Exception $e) {
             error_log('Aramex Automation: Email error for order #' . $order->get_id() . ' - ' . $e->getMessage());
             error_log('Aramex Automation: Email error stack trace: ' . $e->getTraceAsString());
+            return false;
+        }
+    }
+    
+    /**
+     * Send Order Shipped email
+     */
+    public static function sendOrderShippedEmail($order, $trackingNumber)
+    {
+        // Check if email was already sent for this tracking number
+        $emailSentKey = 'order_shipped_email_sent_' . $order->get_id() . '_' . $trackingNumber;
+        if (get_transient($emailSentKey)) {
+            return true;
+        }
+
+        try {
+            // Get the email instance
+            $mailer = WC()->mailer();
+            $emails = $mailer->get_emails();
+            $email = $emails['order_shipped'] ?? null;
+
+            if ($email) {
+                // Trigger the email
+                $email->trigger($order->get_id(), $order, $trackingNumber);
+                
+                // Set transient to prevent duplicate emails (expires in 1 hour)
+                set_transient($emailSentKey, true, HOUR_IN_SECONDS);
+                
+                $order->add_order_note('Order shipped email sent to customer');
+                return true;
+            } else {
+                error_log('Aramex Automation: Order Shipped email class not found in mailer. Available emails: ' . implode(', ', array_keys($emails)));
+                return false;
+            }
+        } catch (\Exception $e) {
+            error_log('Aramex Automation: Order Shipped email error for order #' . $order->get_id() . ' - ' . $e->getMessage());
+            error_log('Aramex Automation: Order Shipped email error stack trace: ' . $e->getTraceAsString());
             return false;
         }
     }

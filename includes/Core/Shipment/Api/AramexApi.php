@@ -140,6 +140,23 @@ class AramexApi
     }
 
     /**
+     * Get Tracking API information
+     */
+    private function getTrackingApiInfo($aramex_settings)
+    {
+        // Use the same WSDL approach as the existing Aramex plugin
+        $wsdl_path = WP_PLUGIN_DIR . '/aramex-shipping-woocommerce/wsdl/';
+        if ($aramex_settings['sandbox_flag'] == 1) {
+            $wsdl_path .= 'test/';
+        }
+        $wsdl_path .= 'Tracking.wsdl';
+        
+        return [
+            'baseUrl' => $wsdl_path
+        ];
+    }
+
+    /**
      * Get client information
      */
     private function getClientInfo($aramex_settings)
@@ -151,7 +168,8 @@ class AramexApi
             'AccountPin' => $aramex_settings['account_pin'],
             'UserName' => $aramex_settings['user_name'],
             'Password' => $aramex_settings['password'],
-            'Version' => 'v1.0'
+            'Version' => 'v1.0',
+            'Source' => 52
         ];
     }
 
@@ -540,6 +558,166 @@ class AramexApi
             'success' => false,
             'message' => 'No tracking number returned from API'
         ];
+    }
+
+    /**
+     * Track shipment status using Aramex API
+     */
+    public function trackShipment($tracking_number, $aramex_settings = null)
+    {
+        try {
+            // Get Aramex settings if not provided
+            if (!$aramex_settings) {
+                $aramex_settings = get_option('woocommerce_aramex_settings');
+            }
+            
+            if (!$aramex_settings) {
+                return [
+                    'success' => false,
+                    'message' => 'Aramex settings not found'
+                ];
+            }
+
+            // Get API info for tracking (use Tracking WSDL)
+            $tracking_api_info = $this->getTrackingApiInfo($aramex_settings);
+            $client_info = $this->getClientInfo($aramex_settings);
+
+            // Create SOAP client for tracking
+            $client = new \SoapClient($tracking_api_info['baseUrl'], [
+                'trace' => 1,
+                'exceptions' => true,
+                'soap_version' => SOAP_1_1
+            ]);
+
+            // Prepare tracking request (following the existing plugin's format)
+            $tracking_request = [
+                'ClientInfo' => $client_info,
+                'Transaction' => ['Reference1' => '001'],
+                'Shipments' => [$tracking_number]
+            ];
+
+            // Make SOAP call to track shipment
+            $response = $client->TrackShipments($tracking_request);
+
+            // Process tracking response
+            return $this->processTrackingResponse($response, $tracking_number);
+
+        } catch (\Exception $e) {
+            error_log('Aramex Automation Tracking API Error: ' . $e->getMessage());
+            error_log('Aramex Automation Tracking API Error Stack: ' . $e->getTraceAsString());
+            return [
+                'success' => false,
+                'message' => 'Tracking API Error: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Process tracking response
+     */
+    private function processTrackingResponse($response, $tracking_number = '')
+    {
+        try {
+            // Check for errors (following the existing plugin's approach)
+            if (isset($response->HasErrors) && $response->HasErrors) {
+                $error_message = 'Tracking Error: ';
+                if (isset($response->Notifications)) {
+                    foreach ($response->Notifications as $notification) {
+                        $error_message .= $notification->Code . ' - ' . $notification->Message . ' ';
+                    }
+                }
+
+                return [
+                    'success' => false,
+                    'message' => trim($error_message)
+                ];
+            }
+
+            // Check for successful response (following the existing plugin's structure)
+            if (is_object($response) && !$response->HasErrors) {
+                if (!empty($response->TrackingResults->KeyValueOfstringArrayOfTrackingResultmFAkxlpY->Value->TrackingResult)) {
+                    $tracking_results = $response->TrackingResults->KeyValueOfstringArrayOfTrackingResultmFAkxlpY->Value->TrackingResult;
+                    
+                    // Get the latest tracking status (first item in array or single object)
+                    if (is_array($tracking_results)) {
+                        $latest_status = $tracking_results[0];
+                    } else {
+                        $latest_status = $tracking_results;
+                    }
+
+                    // Extract status information
+                    $status = isset($latest_status->UpdateDescription) ? $latest_status->UpdateDescription : 'Unknown';
+                    $location = isset($latest_status->UpdateLocation) ? $latest_status->UpdateLocation : '';
+                    $date = isset($latest_status->UpdateDateTime) ? $latest_status->UpdateDateTime : '';
+                    
+                    // Determine shipment stage
+                    $shipment_stage = $this->determineShipmentStage($status);
+                    
+                    return [
+                        'success' => true,
+                        'status' => $status,
+                        'location' => $location,
+                        'date' => $date,
+                        'shipment_stage' => $shipment_stage,
+                        'raw_status' => $latest_status
+                    ];
+                } else {
+                    return [
+                        'success' => false,
+                        'message' => 'No tracking information found for this shipment'
+                    ];
+                }
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Unable to retrieve tracking information'
+            ];
+
+        } catch (\Exception $e) {
+            error_log('Aramex Automation: Error processing tracking response: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Error processing tracking response: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Determine shipment stage based on status description
+     */
+    private function determineShipmentStage($status)
+    {
+        $status_lower = strtolower($status);
+        
+        // In Transit statuses
+        if (strpos($status_lower, 'in transit') !== false ||
+            strpos($status_lower, 'picked up') !== false ||
+            strpos($status_lower, 'departed') !== false ||
+            strpos($status_lower, 'arrived') !== false ||
+            strpos($status_lower, 'out for delivery') !== false ||
+            strpos($status_lower, 'in delivery') !== false) {
+            return 'in_transit';
+        }
+        
+        // Delivered statuses
+        if (strpos($status_lower, 'delivered') !== false ||
+            strpos($status_lower, 'completed') !== false ||
+            strpos($status_lower, 'received') !== false ||
+            strpos($status_lower, 'signed') !== false) {
+            return 'delivered';
+        }
+        
+        // Pending/Processing statuses
+        if (strpos($status_lower, 'pending') !== false ||
+            strpos($status_lower, 'processing') !== false ||
+            strpos($status_lower, 'created') !== false ||
+            strpos($status_lower, 'booked') !== false) {
+            return 'pending';
+        }
+        
+        // Default to pending if status is unclear
+        return 'pending';
     }
 
     /**

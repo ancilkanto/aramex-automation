@@ -1,8 +1,8 @@
 <?php
 /**
- * Awaiting Shipment email
+ * Order Shipped email
  *
- * This template can be overridden by copying it to yourtheme/woocommerce/emails/aramex-shipment.php.
+ * This template can be overridden by copying it to yourtheme/woocommerce/emails/order-shipped.php.
  *
  * @see https://docs.woocommerce.com/document/template-structure/
  * @package AramexAutomation
@@ -90,7 +90,8 @@ do_action('woocommerce_email_header', $email_heading, $email);
     
     <div class="english-content">
         <p><?php printf(esc_html__('Hi %s,', 'woocommerce'), esc_html($order->get_billing_first_name())); ?></p>
-        <p><?php printf(esc_html__('Thank you for your order! A tracking number has been assigned for your order #%s and you can track it via the Aramex website.', 'aramex-automation'), $order->get_order_number()); ?></p>
+        <p><?php printf(esc_html__('Great news! Your order #%s has been shipped and is on its way to you.', 'aramex-automation'), $order->get_order_number()); ?></p>
+        <p><?php esc_html_e('You can track your shipment using the tracking number via Aramex website.', 'aramex-automation'); ?></p>        
     </div>
 
     <div class="english-heading">
@@ -124,7 +125,11 @@ do_action('woocommerce_email_header', $email_heading, $email);
                 </td>
             </tr>
         </tbody>
-    </table>    
+    </table>
+
+    <div class="english-content">
+       <p><?php esc_html_e('Thank you for your order!', 'aramex-automation'); ?></p>
+    </div>
 </div> <!-- End English Section -->
 
 <?php
@@ -132,4 +137,4 @@ do_action('woocommerce_email_header', $email_heading, $email);
  * @hooked WC_Emails::email_footer() Output the email footer
  */
 do_action('woocommerce_email_footer', $email);
-?> 
+?>
