@@ -108,6 +108,22 @@ class Plugin
     }
 
     /**
+     * Get admin notification emails
+     * 
+     * @return array Array of email addresses
+     */
+    public static function getAdminNotificationEmails()
+    {
+        $emails = get_option('aramex_automation_admin_notification_emails', '');
+        if (empty($emails)) {
+            return [];
+        }
+        
+        $email_array = array_map('trim', explode(',', $emails));
+        return array_filter($email_array, 'is_email');
+    }
+
+    /**
      * Admin notice for missing dependency
      */
     public function adminNotice()

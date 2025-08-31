@@ -18,28 +18,76 @@ if (!defined('ABSPATH')) {
 /*
  * @hooked WC_Emails::email_header() Output the email header
  */
-// First header with Arabic heading - COMMENTED OUT
-/*
+// First header with Arabic heading
 if (!empty($email_heading_arabic)) {
     do_action('woocommerce_email_header', $email_heading_arabic, $email);
+} else {
+    // Fallback to English heading if Arabic is not available
+    do_action('woocommerce_email_header', $email_heading, $email);
 }
-*/
-// Use English heading instead
-do_action('woocommerce_email_header', $email_heading, $email);
 ?>
 
 
-<link rel="stylesheet" href="<?php echo esc_url(plugins_url('assets/css/bilingual-email.css', dirname(dirname(__FILE__)))); ?>" type="text/css" />
+<style type="text/css">
+    /* Inline styles for email compatibility */
+    .arabic-section {
+        text-align: right !important;
+        direction: rtl;
+        font-family: 'Arial', 'Tahoma', sans-serif;
+        margin-bottom: 40px;
+    }
+    .english-section {
+        text-align: left;
+        padding-top: 30px;
+        border-top: 3px solid #d0d0d0;
+    }
+    .arabic-heading {
+        text-align: right !important;
+        direction: rtl;
+        font-family: 'Arial', 'Tahoma', sans-serif;
+        font-size: 1.1em;
+        margin-bottom: 20px;
+    }
+    .arabic-heading h2 {
+        text-align: right !important;
+        direction: rtl;
+    }
+    .arabic-section h2,
+    .arabic-section h3,
+    .arabic-section p,
+    .arabic-section div {
+        text-align: right !important;
+        direction: rtl;
+    }
+    .arabic-section .td {
+        text-align: right !important;
+    }
+    .english-heading {
+        text-align: left;
+        margin-bottom: 20px;
+    }
+    .arabic-content {
+        text-align: right;
+        direction: rtl;
+        font-family: 'Arial', 'Tahoma', sans-serif;
+        font-size: 0.95em;
+        margin-bottom: 15px;
+    }
+    .english-content {
+        text-align: left;
+        margin-bottom: 15px;
+    }
+</style>
 
-<!-- Arabic Section First - HIDDEN -->
-<div class="arabic-section" style="display: none;">
-    <div class="arabic-content">
-        <p><?php printf(esc_html__('مرحباً %s،', 'aramex-automation'), esc_html($order->get_billing_first_name())); ?></p>
-        <p><?php printf(esc_html__('أخبار رائعة! طلبك رقم #%s تم شحنه وهو في طريقه إليك.', 'aramex-automation'), $order->get_order_number()); ?></p>
+<!-- Arabic Section First -->
+<div class="arabic-section" style="text-align: right !important; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; margin-bottom: 40px;">
+    <div class="arabic-content" style="text-align: right; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; font-size: 0.95em; margin-bottom: 15px;">
+        <p style="text-align: right !important; direction: rtl;"><?php printf(esc_html__('  مرحبا   %s،', 'aramex-automation'), esc_html($order->get_billing_first_name())); ?></p>
+        <p style="text-align: right !important; direction: rtl;"><?php printf(esc_html__('   شكرًا لطلبك!  #%s تم تخصيص رقم تتبع لطلبك رقم  ويمكنك متابعته عبر موقع أرامكس.         ', 'aramex-automation'), $order->get_order_number()); ?></p>
     </div>
 
-    <div class="arabic-heading">
-        <h2><?php esc_html_e('معلومات التتبع', 'aramex-automation'); ?></h2>
+    <div class="arabic-heading" style="text-align: right !important; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; font-size: 1.1em; margin-bottom: 20px;">
+        <h2 style="text-align: right !important; direction: rtl;"><?php esc_html_e(' معلومات التتبع  ', 'aramex-automation'); ?></h2>
     </div>
 
 <table class="td" cellspacing="0" cellpadding="6" style="width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; margin-bottom: 40px;" border="1">
@@ -54,7 +102,7 @@ do_action('woocommerce_email_header', $email_heading, $email);
         </tr>
         <tr>
             <td class="td" scope="row" style="text-align: right; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
-                <strong><?php esc_html_e('إجمالي الطلب:', 'aramex-automation'); ?></strong>
+                <strong><?php esc_html_e(' اجمالي الطلب   ', 'aramex-automation'); ?></strong>
             </td>
             <td class="td" scope="row" style="text-align: right; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
                 <?php echo $order->get_formatted_order_total(); ?>
@@ -65,15 +113,15 @@ do_action('woocommerce_email_header', $email_heading, $email);
                 <strong><?php esc_html_e('تاريخ الطلب:', 'aramex-automation'); ?></strong>
             </td>
             <td class="td" scope="row" style="text-align: right; vertical-align: middle; border: 1px solid #eee; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word; color: #636363; padding: 12px;">
-                <?php echo wc_format_datetime($order->get_date_created()); ?>
+                <?php echo windrose_get_arabic_date(wc_format_datetime($order->get_date_created())); ?>
             </td>
         </tr>
     </tbody>
 </table>
 
-<div class="arabic-content">
-    <p><?php esc_html_e('يمكنك تتبع شحنتك باستخدام رقم التتبع أعلاه من خلال موقع أرامكس.', 'aramex-automation'); ?></p>
-    <p><?php esc_html_e('شكراً لك على طلبك!', 'aramex-automation'); ?></p>
+<div class="arabic-content" style="text-align: right; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; font-size: 0.95em; margin-bottom: 15px;">
+    <p style="text-align: right !important; direction: rtl;"><?php esc_html_e('يمكنك تتبع شحنتك باستخدام رقم التتبع أعلاه من خلال موقع أرامكس.', 'aramex-automation'); ?></p>
+    <p style="text-align: right !important; direction: rtl;"><?php esc_html_e('شكراً لك على طلبك!', 'aramex-automation'); ?></p>
 </div>
 </div> <!-- End Arabic Section -->
 
@@ -81,19 +129,19 @@ do_action('woocommerce_email_header', $email_heading, $email);
 
 
 <!-- English Section Second -->
-<div class="english-section">
+<div class="english-section" style="text-align: left; padding-top: 30px; border-top: 3px solid #d0d0d0;">
     
-    <!-- English Email Heading - HIDDEN -->
-    <div style="background-color: #ef722f; padding: 20px; text-align: center; margin-bottom: 20px; display: none;">
+    <!-- English Email Heading -->
+    <div style="background-color: #ef722f; padding: 20px; text-align: center; margin-bottom: 20px;">
         <h1 style="color: white; margin: 0; font-size: 24px;"><?php echo esc_html($email_heading); ?></h1>
     </div>
     
-    <div class="english-content">
+    <div class="english-content" style="text-align: left; margin-bottom: 15px;">
         <p><?php printf(esc_html__('Hi %s,', 'woocommerce'), esc_html($order->get_billing_first_name())); ?></p>
         <p><?php printf(esc_html__('Thank you for your order! A tracking number has been assigned for your order #%s and you can track it via the Aramex website.', 'aramex-automation'), $order->get_order_number()); ?></p>
     </div>
 
-    <div class="english-heading">
+    <div class="english-heading" style="text-align: left; margin-bottom: 20px;">
         <h2><?php esc_html_e('Tracking Information', 'aramex-automation'); ?></h2>
     </div>
 

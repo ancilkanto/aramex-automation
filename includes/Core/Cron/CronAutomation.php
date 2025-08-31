@@ -144,6 +144,33 @@ class CronAutomation
         
         set_transient('aramex_automation_cron_results', $cron_results, DAY_IN_SECONDS);
         
+        // Send admin notification for cron automation summary
+        if ($processed_count > 0) {
+            $subject = 'Cron Automation Summary - ' . date('Y-m-d H:i:s');
+            $message = sprintf(
+                '<p><strong>Cron Automation Summary</strong></p>
+                <p><strong>Processed Orders:</strong> %d</p>
+                <p><strong>Successful:</strong> %d</p>
+                <p><strong>Failed:</strong> %d</p>',
+                $processed_count,
+                $success_count,
+                $error_count
+            );
+            
+            if (!empty($errors)) {
+                $message .= '<p><strong>Errors:</strong></p><ul>';
+                foreach (array_slice($errors, 0, 5) as $error) { // Limit to first 5 errors
+                    $message .= '<li>' . esc_html($error) . '</li>';
+                }
+                if (count($errors) > 5) {
+                    $message .= '<li>... and ' . (count($errors) - 5) . ' more errors</li>';
+                }
+                $message .= '</ul>';
+            }
+            
+            \AramexAutomation\Core\Email\EmailManager::sendAdminNotification($subject, $message);
+        }
+        
         // After processing orders, check shipment statuses
         $this->checkShipmentStatuses();
     }
@@ -193,6 +220,31 @@ class CronAutomation
         ];
         
         set_transient('aramex_automation_status_check_results', $status_check_results, DAY_IN_SECONDS);
+        
+        // Send admin notification for shipment status check summary
+        if ($processed_count > 0) {
+            $subject = 'Shipment Status Check Summary - ' . date('Y-m-d H:i:s');
+            $message = sprintf(
+                '<p><strong>Shipment Status Check Summary</strong></p>
+                <p><strong>Orders Checked:</strong> %d</p>
+                <p><strong>Status Updates:</strong> %d</p>',
+                $processed_count,
+                $status_updates
+            );
+            
+            if (!empty($errors)) {
+                $message .= '<p><strong>Errors:</strong></p><ul>';
+                foreach (array_slice($errors, 0, 5) as $error) { // Limit to first 5 errors
+                    $message .= '<li>' . esc_html($error) . '</li>';
+                }
+                if (count($errors) > 5) {
+                    $message .= '<li>... and ' . (count($errors) - 5) . ' more errors</li>';
+                }
+                $message .= '</ul>';
+            }
+            
+            \AramexAutomation\Core\Email\EmailManager::sendAdminNotification($subject, $message);
+        }
         
         error_log('Aramex Automation: ' . $summary);
     }

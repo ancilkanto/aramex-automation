@@ -44,6 +44,35 @@ class SettingsHandler
             }
         }
 
+        // Handle test admin email
+        if (isset($_GET['test_admin_email']) && $_GET['test_admin_email'] === '1') {
+            if (current_user_can('manage_woocommerce')) {
+                $admin_emails = \AramexAutomation\Plugin::getAdminNotificationEmails();
+                
+                if (empty($admin_emails)) {
+                    $this->addAdminNotice('No admin notification emails configured. Please add email addresses in the settings above.', 'warning');
+                } else {
+                    $result = \AramexAutomation\Core\Email\EmailManager::sendAdminNotification(
+                        'Test Admin Notification - Aramex Automation',
+                        '<p>This is a test email to verify that admin notifications are working correctly.</p>
+                         <p><strong>Plugin:</strong> Aramex Automation</p>
+                         <p><strong>Time:</strong> ' . current_time('Y-m-d H:i:s') . '</p>
+                         <p>If you receive this email, admin notifications are configured and working properly.</p>'
+                    );
+                    
+                    if ($result) {
+                        $this->addAdminNotice('Test admin notification email sent successfully using WooCommerce email system.', 'success');
+                    } else {
+                        $this->addAdminNotice('Failed to send test admin notification email. Please check your email configuration.', 'error');
+                    }
+                }
+                
+                // Redirect back to settings tab
+                wp_redirect(admin_url('admin.php?page=aramex-shipment-automation&tab=settings'));
+                exit;
+            }
+        }
+
         if (!isset($_POST['aramex_automation_settings_action'])) {
             return;
         }
@@ -103,6 +132,20 @@ class SettingsHandler
                 $value = 'creation';
             }
             update_option('aramex_automation_email_trigger', $value);
+        }
+
+        // Save admin notification emails
+        if (isset($_POST['admin_notification_emails'])) {
+            $emails = sanitize_text_field($_POST['admin_notification_emails']);
+            // Validate email format (basic validation for comma-separated emails)
+            $email_array = array_map('trim', explode(',', $emails));
+            $valid_emails = [];
+            foreach ($email_array as $email) {
+                if (!empty($email) && is_email($email)) {
+                    $valid_emails[] = $email;
+                }
+            }
+            update_option('aramex_automation_admin_notification_emails', implode(',', $valid_emails));
         }
 
         // Save non-working days settings

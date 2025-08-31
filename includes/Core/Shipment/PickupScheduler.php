@@ -32,6 +32,9 @@ class PickupScheduler
                 
                 // Trigger custom hook after successful pickup scheduling
                 do_action('aramex_after_pickup_schedule', $order, $tracking_number, $result['pickup_id']);
+
+                // Note: Admin notification for successful pickup scheduling has been removed
+                // Only shipment creation notifications are sent
                 
             } else {
                 // Log pickup failure
@@ -40,6 +43,9 @@ class PickupScheduler
                 // Add failure note to order
                 $failure_note = "Pickup scheduling failed: " . $result['message'];
                 $order->add_order_note($failure_note);
+
+                // Note: Admin notification for failed pickup scheduling has been removed
+                // Only shipment creation notifications are sent
             }
             
             return $result;
@@ -50,6 +56,9 @@ class PickupScheduler
             // Add error note to order
             $error_note = "Pickup scheduling error: " . $e->getMessage();
             $order->add_order_note($error_note);
+
+            // Note: Admin notification for pickup scheduling exception has been removed
+            // Only shipment creation notifications are sent
             
             return [
                 'success' => false,

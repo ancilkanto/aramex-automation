@@ -546,9 +546,15 @@ class AramexApi
 
         // Check for successful response using the same logic as the original plugin
         if (isset($response->Shipments->ProcessedShipment->ID)) {
+            $label_url = '';
+            if (isset($response->Shipments->ProcessedShipment->ShipmentLabel->LabelURL)) {
+                $label_url = $response->Shipments->ProcessedShipment->ShipmentLabel->LabelURL;
+            }
+            
             return [
                 'success' => true,
                 'tracking' => $response->Shipments->ProcessedShipment->ID,
+                'label_url' => $label_url,
                 'message' => 'Shipment created successfully. Tracking number: ' . $response->Shipments->ProcessedShipment->ID
             ];
         }
@@ -757,5 +763,43 @@ class AramexApi
             'success' => false,
             'message' => 'No pickup ID returned from API'
         ];
+    }
+
+    /**
+     * Get label URL from order meta
+     * 
+     * @param int|WC_Order $order Order ID or order object
+     * @return string|false Label URL if found, false otherwise
+     */
+    public static function getOrderLabelUrl($order)
+    {
+        if (is_numeric($order)) {
+            $order = wc_get_order($order);
+        }
+        
+        if (!$order || !is_a($order, 'WC_Order')) {
+            return false;
+        }
+        
+        return $order->get_meta('_aramex_label_url');
+    }
+
+    /**
+     * Get tracking number from order meta
+     * 
+     * @param int|WC_Order $order Order ID or order object
+     * @return string|false Tracking number if found, false otherwise
+     */
+    public static function getOrderTrackingNumber($order)
+    {
+        if (is_numeric($order)) {
+            $order = wc_get_order($order);
+        }
+        
+        if (!$order || !is_a($order, 'WC_Order')) {
+            return false;
+        }
+        
+        return $order->get_meta('_aramex_tracking_number');
     }
 } 

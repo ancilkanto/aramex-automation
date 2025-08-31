@@ -38,7 +38,7 @@ class ShipmentCreator
             
             // Update order with shipment information
             if ($result['success']) {
-                $this->updateOrderShipment($order, $result['tracking']);
+                $this->updateOrderShipment($order, $result['tracking'], $result['label_url']);
                 
                 // Send email to customer if enabled and trigger is set to 'creation'
                 if (
@@ -53,6 +53,31 @@ class ShipmentCreator
                     $scheduler = new PickupScheduler();
                     $scheduler->schedulePickup($order, $result['tracking']);
                 }
+
+                // Send admin notification for successful shipment creation
+                EmailManager::sendAdminNotification(
+                    'Shipment Created Successfully - Order #' . $order->get_id(),
+                    sprintf(
+                        '<p>A new Aramex shipment has been created successfully.</p>
+                        <p><strong>Tracking Number:</strong> %s</p>%s',
+                        $result['tracking'],
+                        EmailManager::getLabelUrlHtml($order)
+                    ),
+                    $order
+                );
+            } else {
+                // Send admin notification for failed shipment creation
+                EmailManager::sendAdminNotification(
+                    'Shipment Creation Failed - Order #' . $order->get_id(),
+                    sprintf(
+                        '<p>Failed to create Aramex shipment for order #%s.</p>
+                        <p><strong>Error:</strong> %s</p>%s',
+                        $order->get_id(),
+                        $result['message'],
+                        EmailManager::getLabelUrlHtml($order)
+                    ),
+                    $order
+                );
             }
             
             // Clean up the transient
@@ -65,6 +90,19 @@ class ShipmentCreator
             if (isset($shipment_key)) {
                 delete_transient($shipment_key);
             }
+
+            // Send admin notification for shipment creation exception
+            EmailManager::sendAdminNotification(
+                'Shipment Creation Exception - Order #' . $order->get_id(),
+                sprintf(
+                    '<p>An exception occurred while creating shipment for order #%s.</p>
+                    <p><strong>Error:</strong> %s</p>%s',
+                    $order->get_id(),
+                    $e->getMessage(),
+                    EmailManager::getLabelUrlHtml($order)
+                ),
+                $order
+            );
             
             return [
                 'success' => false,
@@ -208,7 +246,7 @@ class ShipmentCreator
     /**
      * Update order with shipment information
      */
-    private function updateOrderShipment($order, $tracking_number)
+    private function updateOrderShipment($order, $tracking_number, $label_url = '')
     {
         // Add order note with tracking number (same format as original plugin)
         $note_content = "AWB No. " . $tracking_number . " - Order No. " . $order->get_id();
@@ -216,6 +254,12 @@ class ShipmentCreator
         
         // Persist tracking number to order meta for later use (e.g., email on status change)
         $order->update_meta_data('_aramex_tracking_number', $tracking_number);
+        
+        // Store label URL if available
+        if (!empty($label_url)) {
+            $order->update_meta_data('_aramex_label_url', $label_url);
+        }
+        
         $order->save();
         
         // Don't change status here - it will be changed to "awaiting shipment" after pickup scheduling

@@ -100,6 +100,17 @@ if ($recent_result) {
                         </tr>
                         <tr>
                             <th scope="row">
+                                <label for="admin_notification_emails">Admin Notification Emails</label>
+                            </th>
+                            <td>
+                                <input type="text" id="admin_notification_emails" name="admin_notification_emails" 
+                                       value="<?php echo esc_attr(get_option('aramex_automation_admin_notification_emails', '')); ?>" 
+                                       class="regular-text" placeholder="admin@example.com, manager@example.com" />
+                                <p class="description">Enter email addresses separated by commas to receive admin notifications about shipment operations. Leave empty to disable admin notifications.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
                                 <label for="pickup_date">Pickup Date</label>
                             </th>
                             <td>
@@ -330,6 +341,9 @@ if ($recent_result) {
                            <span style="padding: 0 10px;"></span>
                         <a href="<?php echo admin_url('admin.php?page=aramex-shipment-automation&tab=settings&check_status=1'); ?>" 
                            class="button button-secondary"><?php esc_html_e('Check Shipment Status', 'aramex-automation'); ?></a>
+                        <span style="padding: 0 10px;"></span>
+                        <a href="<?php echo admin_url('admin.php?page=aramex-shipment-automation&tab=settings&test_admin_email=1'); ?>" 
+                           class="button button-secondary"><?php esc_html_e('Test Admin Email', 'aramex-automation'); ?></a>
                     </p>
                 </div>
             </div>
