@@ -51,6 +51,9 @@ add_action('plugins_loaded', function() {
 
 // Activation hook
 register_activation_hook(__FILE__, function() {
+    // Clear any existing cron job first to ensure correct timing
+    wp_clear_scheduled_hook('aramex_automation_daily_cron');
+    
     // Schedule cron job if automation is enabled
     if (get_option('aramex_automation_auto_cron_enabled', '0') === '1') {
         $cron_hour = get_option('aramex_automation_cron_hour', '9');

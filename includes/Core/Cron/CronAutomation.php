@@ -17,33 +17,6 @@ class CronAutomation
     public function __construct()
     {
         add_action('aramex_automation_daily_cron', [$this, 'processOrdersAutomatically']);
-        add_action('init', [$this, 'scheduleCronOnActivation']);
-    }
-
-    /**
-     * Schedule cron job on plugin activation
-     */
-    public function scheduleCronOnActivation()
-    {
-        // Only schedule if not already scheduled and automation is enabled
-        if (get_option('aramex_automation_auto_cron_enabled', '0') === '1') {
-            
-            // Schedule main automation cron
-            if (!wp_next_scheduled('aramex_automation_daily_cron')) {
-                $cron_hour = get_option('aramex_automation_cron_hour', '9');
-                $cron_minute = get_option('aramex_automation_cron_minute', '0');
-                
-                // Calculate the next occurrence of the specified time
-                $next_run = strtotime("today {$cron_hour}:{$cron_minute}:00");
-                
-                // If the time has already passed today, schedule for tomorrow
-                if ($next_run <= time()) {
-                    $next_run = strtotime("tomorrow {$cron_hour}:{$cron_minute}:00");
-                }
-                
-                wp_schedule_event($next_run, 'daily', 'aramex_automation_daily_cron');
-            }
-        }
     }
 
     /**
@@ -77,6 +50,8 @@ class CronAutomation
         if (empty($orders)) {
             error_log('Aramex Automation: No orders found with status "' . $order_status . '" for cron automation');
             return;
+        }else{
+            error_log('Aramex Automation: ' . count($orders) . ' orders found with status "' . $order_status . '" for cron automation');
         }
 
         $processed_count = 0;
@@ -112,7 +87,7 @@ class CronAutomation
                 
                 if ($result['success']) {
                     $success_count++;
-                    
+                    error_log('Aramex Automation: Cron successfully created shipment for order #' . $order_id);
                 } else {
                     $error_count++;
                     $errors[] = "Order #{$order_id}: " . $result['message'];

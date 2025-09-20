@@ -93,6 +93,11 @@ class SettingsHandler
             update_option('aramex_automation_weight_unit', sanitize_text_field($_POST['default_weight_unit']));
         }
 
+        // Save custom description of goods
+        if (isset($_POST['custom_description_goods'])) {
+            update_option('aramex_automation_custom_description_goods', sanitize_textarea_field($_POST['custom_description_goods']));
+        }
+
         // Save pickup settings
         if (isset($_POST['auto_schedule'])) {
             update_option('aramex_automation_auto_schedule', '1');
@@ -195,25 +200,23 @@ class SettingsHandler
     {
         $cron_enabled = get_option('aramex_automation_auto_cron_enabled', '0');
         
+        // Always clear existing cron job first to ensure timing updates are applied
+        wp_clear_scheduled_hook('aramex_automation_daily_cron');
+        
         if ($cron_enabled === '1') {
-            // Schedule the cron job
-            if (!wp_next_scheduled('aramex_automation_daily_cron')) {
-                $cron_hour = get_option('aramex_automation_cron_hour', '9');
-                $cron_minute = get_option('aramex_automation_cron_minute', '0');
-                
-                // Calculate the next occurrence of the specified time
-                $next_run = strtotime("today {$cron_hour}:{$cron_minute}:00");
-                
-                // If the time has already passed today, schedule for tomorrow
-                if ($next_run <= time()) {
-                    $next_run = strtotime("tomorrow {$cron_hour}:{$cron_minute}:00");
-                }
-                
-                wp_schedule_event($next_run, 'daily', 'aramex_automation_daily_cron');
+            // Schedule the cron job with new timing
+            $cron_hour = get_option('aramex_automation_cron_hour', '9');
+            $cron_minute = get_option('aramex_automation_cron_minute', '0');
+            
+            // Calculate the next occurrence of the specified time
+            $next_run = strtotime("today {$cron_hour}:{$cron_minute}:00");
+            
+            // If the time has already passed today, schedule for tomorrow
+            if ($next_run <= time()) {
+                $next_run = strtotime("tomorrow {$cron_hour}:{$cron_minute}:00");
             }
-        } else {
-            // Unschedule the cron job
-            wp_clear_scheduled_hook('aramex_automation_daily_cron');
+            
+            wp_schedule_event($next_run, 'daily', 'aramex_automation_daily_cron');
         }
     }
 

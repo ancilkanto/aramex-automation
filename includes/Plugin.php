@@ -147,7 +147,7 @@ class Plugin
         new Core\Admin\AdminPage();
         new Core\Shipment\ShipmentCreator();
         new Core\Shipment\PickupScheduler();
-        new Core\Email\EmailManager();
+        Core\Email\EmailManager::getInstance();
 
         new Core\Logging\ShipmentLogger();
         new Core\Cron\CronAutomation();

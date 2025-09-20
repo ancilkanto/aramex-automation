@@ -19,6 +19,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WCEmailAdminShipmentNotification extends \WC_Email
 {
     /**
+     * Email properties
+     */
+    public $tracking_number;
+    public $label_url;
+    public $shipment_details;
+    public $additional_content;
+
+    /**
      * Constructor
      */
     public function __construct()
@@ -30,9 +38,6 @@ class WCEmailAdminShipmentNotification extends \WC_Email
         $this->template_html  = 'emails/admin-shipment-notification.php';
         $this->template_plain = 'emails/plain/admin-shipment-notification.php';
         $this->template_base  = ARAMEX_AUTOMATION_PLUGIN_PATH . 'templates/';
-        
-        // Debug: Log template base path
-        error_log('Aramex Automation: Template base path: ' . $this->template_base);
 
         // Call parent constructor
         parent::__construct();
@@ -95,12 +100,9 @@ class WCEmailAdminShipmentNotification extends \WC_Email
         $this->shipment_details   = $shipment_details;
         $this->additional_content = $additional_content;
 
-        if ( ! $this->is_enabled() || ! $this->get_recipient() ) {
-            error_log('Aramex Automation: Email not enabled or no recipient set');
+        if ( ! $this->is_enabled() || ! $this->get_recipient() || $this->tracking_number == '' || $this->label_url == '' ) {
             return;
         }
-
-        error_log('Aramex Automation: Sending admin shipment notification email to: ' . $this->get_recipient());
         
         $this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $this->get_attachments() );
 
@@ -114,10 +116,6 @@ class WCEmailAdminShipmentNotification extends \WC_Email
      */
     public function get_content_html()
     {
-        error_log('Aramex Automation: Getting HTML content for admin shipment notification');
-        error_log('Aramex Automation: Template HTML: ' . $this->template_html);
-        error_log('Aramex Automation: Template base: ' . $this->template_base);
-        
         return wc_get_template_html(
             $this->template_html,
             array(

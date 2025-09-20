@@ -12,21 +12,42 @@ use AramexAutomation\Core\Email\WCEmailAdminShipmentNotification;
 class EmailManager
 {
     /**
+     * Singleton instance
+     */
+    private static $instance = null;
+    
+    /**
+     * Track if filter has been registered
+     */
+    private static $filter_registered = false;
+
+    /**
+     * Get singleton instance
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
      * Constructor
      */
-    public function __construct()
+    private function __construct()
     {
-        // Add the email class directly to WooCommerce email classes
-        add_filter('woocommerce_email_classes', [$this, 'addEmailClass']);
+        // Only register the filter once
+        if (!self::$filter_registered) {
+            add_filter('woocommerce_email_classes', [$this, 'addEmailClass']);
+            self::$filter_registered = true;
+        }
         
         // Also try adding it on woocommerce_init to ensure WooCommerce is loaded
         add_action('woocommerce_init', [$this, 'ensureEmailClassAdded']);
         
         // Add a test action to verify email class is working
         add_action('admin_init', [$this, 'testEmailClass']);
-        
-        // Debug: Log when EmailManager is constructed
-        error_log('Aramex Automation: EmailManager constructed');
     }
 
 
@@ -90,7 +111,12 @@ class EmailManager
     {
         // Ensure WooCommerce and WC_Email are available
         if (!class_exists('WooCommerce') || !class_exists('WC_Email')) {
-            error_log('Aramex Automation: WooCommerce or WC_Email not available when adding email classes');
+            return $emailClasses;
+        }
+        
+        // Check if email classes are already added to avoid repeated instantiation
+        static $classes_added = false;
+        if ($classes_added) {
             return $emailClasses;
         }
         
@@ -99,9 +125,9 @@ class EmailManager
             $emailClasses['order_shipped'] = new WCEmailOrderShipped();
             $emailClasses['aramex_admin_shipment_notification'] = new WCEmailAdminShipmentNotification();
             
-            error_log('Aramex Automation: Successfully added email classes to WooCommerce');
+            $classes_added = true;
         } catch (\Throwable $e) {
-            // Keep failure log only
+            // Log only actual failures
             error_log('Aramex Automation: Failed to add email class: ' . $e->getMessage());
         }
         return $emailClasses;
@@ -207,6 +233,28 @@ class EmailManager
             return false; // No admin emails configured
         }
 
+        // Check for duplicate prevention if order is provided
+        if ($order) {
+            $order_id = $order->get_id();
+            $tracking_number = $order->get_meta('_aramex_tracking_number');
+            
+            // For successful shipment notifications, only send if we have tracking details
+            $is_successful_shipment_notification = strpos($subject, 'Shipment Created Successfully') !== false;
+            if ($is_successful_shipment_notification && empty($tracking_number)) {
+                error_log('Aramex Automation: Skipping admin notification for order #' . $order_id . ' - no tracking number available yet');
+                return true; // Skip notification without tracking details
+            }
+            
+            // Create a unique key for this admin notification
+            $admin_notification_key = 'aramex_admin_notification_sent_' . $order_id . '_' . md5($subject . $message);
+            
+            // Check if this specific admin notification was already sent
+            if (get_transient($admin_notification_key)) {
+                error_log('Aramex Automation: Admin notification already sent for order #' . $order_id . ' with subject: ' . $subject);
+                return true; // Already sent, return success
+            }
+        }
+
         try {
             // Try to use WooCommerce email system first
             if (class_exists('WooCommerce') && WC()->mailer()) {
@@ -241,6 +289,10 @@ class EmailManager
                         }
                     }
                     
+                    if ($sent_count > 0 && $order) {
+                        // Set transient to prevent duplicate admin notifications (expires in 24 hours)
+                        set_transient($admin_notification_key, true, DAY_IN_SECONDS);
+                    }
                     return $sent_count > 0;
                 } else {
                     error_log('Aramex Automation: Admin shipment notification email class not found in WooCommerce mailer');
@@ -273,6 +325,11 @@ class EmailManager
                 if ($result) {
                     $sent_count++;
                 }
+            }
+
+            if ($sent_count > 0 && $order) {
+                // Set transient to prevent duplicate admin notifications (expires in 24 hours)
+                set_transient($admin_notification_key, true, DAY_IN_SECONDS);
             }
 
             return $sent_count > 0;

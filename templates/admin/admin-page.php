@@ -77,6 +77,16 @@ if ($recent_result) {
                         </tr>
                         <tr>
                             <th scope="row">
+                                <label for="custom_description_goods">Custom Description of Goods</label>
+                            </th>
+                            <td>
+                                <textarea id="custom_description_goods" name="custom_description_goods" rows="3" cols="50" 
+                                          placeholder="Enter a custom description for all shipments (optional)"><?php echo esc_textarea(get_option('aramex_automation_custom_description_goods', '')); ?></textarea>
+                                <p class="description">Enter a custom description that will be used for all shipments instead of the auto-generated product list. Leave empty to use the default auto-generated description based on order items.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
                                 <label for="auto_schedule">Auto Schedule Pickup</label>
                             </th>
                             <td>

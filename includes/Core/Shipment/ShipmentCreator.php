@@ -17,17 +17,7 @@ class ShipmentCreator
     public function createShipment($order, $aramex_settings)
     {
         try {
-            // Check if shipment creation is already in progress for this order
-            $shipment_key = 'aramex_shipment_in_progress_' . $order->get_id();
-            if (get_transient($shipment_key)) {
-                return [
-                    'success' => false,
-                    'message' => 'Shipment creation already in progress for this order. Please wait.'
-                ];
-            }
             
-            // Set transient to prevent duplicate creation (expires in 30 seconds)
-            set_transient($shipment_key, true, 30);
             
             // Prepare shipment data
             $shipment_data = $this->prepareShipmentData($order, $aramex_settings);
@@ -37,7 +27,7 @@ class ShipmentCreator
             $result = $api->createShipment($shipment_data);
             
             // Update order with shipment information
-            if ($result['success']) {
+            if ($result['success'] && $result['tracking'] !== '' && $result['tracking'] !== null) {
                 $this->updateOrderShipment($order, $result['tracking'], $result['label_url']);
                 
                 // Send email to customer if enabled and trigger is set to 'creation'
@@ -53,7 +43,7 @@ class ShipmentCreator
                     $scheduler = new PickupScheduler();
                     $scheduler->schedulePickup($order, $result['tracking']);
                 }
-
+                
                 // Send admin notification for successful shipment creation
                 EmailManager::sendAdminNotification(
                     'Shipment Created Successfully - Order #' . $order->get_id(),
@@ -65,44 +55,12 @@ class ShipmentCreator
                     ),
                     $order
                 );
-            } else {
-                // Send admin notification for failed shipment creation
-                EmailManager::sendAdminNotification(
-                    'Shipment Creation Failed - Order #' . $order->get_id(),
-                    sprintf(
-                        '<p>Failed to create Aramex shipment for order #%s.</p>
-                        <p><strong>Error:</strong> %s</p>%s',
-                        $order->get_id(),
-                        $result['message'],
-                        EmailManager::getLabelUrlHtml($order)
-                    ),
-                    $order
-                );
-            }
-            
-            // Clean up the transient
-            delete_transient($shipment_key);
-            
+                
+            } 
+
             return $result;
             
-        } catch (\Exception $e) {
-            // Clean up the transient on error too
-            if (isset($shipment_key)) {
-                delete_transient($shipment_key);
-            }
-
-            // Send admin notification for shipment creation exception
-            EmailManager::sendAdminNotification(
-                'Shipment Creation Exception - Order #' . $order->get_id(),
-                sprintf(
-                    '<p>An exception occurred while creating shipment for order #%s.</p>
-                    <p><strong>Error:</strong> %s</p>%s',
-                    $order->get_id(),
-                    $e->getMessage(),
-                    EmailManager::getLabelUrlHtml($order)
-                ),
-                $order
-            );
+        } catch (\Exception $e) {                        
             
             return [
                 'success' => false,
@@ -122,9 +80,24 @@ class ShipmentCreator
         $total_weight = 0;
         $total_items = 0;
         
+        // Check if custom description is set
+        $custom_description = get_option('aramex_automation_custom_description_goods', '');
+        
+        if (!empty($custom_description)) {
+            // Use custom description if set
+            $description_of_goods = substr($custom_description, 0, 65);
+        } else {
+            // Generate description from order items
+            foreach ($items as $item) {
+                $product = $item->get_product();
+                $description_of_goods .= $product->get_id() . ' - ' . trim($item->get_name()) . ' ';
+            }
+            $description_of_goods = substr($description_of_goods, 0, 65);
+        }
+        
+        // Calculate weight and items count
         foreach ($items as $item) {
             $product = $item->get_product();
-            $description_of_goods .= $product->get_id() . ' - ' . trim($item->get_name()) . ' ';
             $product_weight = $product->get_weight();
             // Use default weight if product weight is not set
             if (empty($product_weight) || $product_weight <= 0) {
@@ -133,7 +106,6 @@ class ShipmentCreator
             $total_weight += $product_weight * $item->get_quantity();
             $total_items += $item->get_quantity();
         }
-        $description_of_goods = substr($description_of_goods, 0, 65);
         
         // Ensure minimum weight
         if ($total_weight <= 0) {
@@ -195,7 +167,7 @@ class ShipmentCreator
             // Package information
             'order_weight' => $total_weight,
             'weight_unit' => get_option('woocommerce_weight_unit'),
-            'number_pieces' => $total_items,
+            'number_pieces' => ceil($total_items / 8), // 1 piece per 8 items, rounded up
             'aramex_shipment_description' => $description_of_goods,
             
             // Shipment information

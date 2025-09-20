@@ -263,7 +263,7 @@ class AramexApi
             'TransportType' => 0,
             'ShippingDateTime' => time(),
             'DueDate' => time() + (7 * 24 * 60 * 60),
-            'PickupLocation' => 'Reception',
+            'PickupLocation' => get_option('aramex_automation_pickup_location', 'Reception'),
             'PickupGUID' => '',
             'Comments' => $shipment_data['aramex_shipment_info_comment'],
             'AccountingInstrcutions' => '',

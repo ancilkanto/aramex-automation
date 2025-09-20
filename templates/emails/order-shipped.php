@@ -83,7 +83,9 @@ if (!empty($email_heading_arabic)) {
 <div class="arabic-section" style="text-align: right !important; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; margin-bottom: 40px;">
     <div class="arabic-content" style="text-align: right; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; font-size: 0.95em; margin-bottom: 15px;">
         <p style="text-align: right !important; direction: rtl;"><?php printf(esc_html__('مرحباً %s،', 'aramex-automation'), esc_html($order->get_billing_first_name())); ?></p>
-        <p style="text-align: right !important; direction: rtl;"><?php printf(esc_html__('أخبار رائعة! طلبك رقم #%s تم شحنه وهو في طريقه إليك.', 'aramex-automation'), $order->get_order_number()); ?></p>
+        <p style="text-align: right !important; direction: rtl;"><?php printf(esc_html__('أخبار رائعة! تم شحن طلبك رقم  #%s وهو الآن في الطريق اليك   ', 'aramex-automation'), $order->get_order_number()); ?></p>
+
+        <p style="text-align: right !important; direction: rtl;"><?php esc_html_e(' يمكنك تتبع شحنتك باستخدام رقم التتبع عبر موقع أرامكس.    ', 'aramex-automation'); ?></p>
     </div>
 
     <div class="arabic-heading" style="text-align: right !important; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; font-size: 1.1em; margin-bottom: 20px;">
@@ -120,7 +122,7 @@ if (!empty($email_heading_arabic)) {
 </table>
 
 <div class="arabic-content" style="text-align: right; direction: rtl; font-family: 'Arial', 'Tahoma', sans-serif; font-size: 0.95em; margin-bottom: 15px;">
-    <p style="text-align: right !important; direction: rtl;"><?php esc_html_e('يمكنك تتبع شحنتك باستخدام رقم التتبع أعلاه من خلال موقع أرامكس.', 'aramex-automation'); ?></p>
+    
     <p style="text-align: right !important; direction: rtl;"><?php esc_html_e('شكراً لك على طلبك!', 'aramex-automation'); ?></p>
 </div>
 </div> <!-- End Arabic Section -->
