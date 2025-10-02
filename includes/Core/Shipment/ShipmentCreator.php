@@ -127,6 +127,25 @@ class ShipmentCreator
             $shipping_address['last_name'] = 'Name';
         }
         
+        // Determine if shipment is domestic or international
+        // Compare shipper country (from Aramex settings) with receiver country (from order)
+        $shipper_country = $aramex_settings['country'];
+        $receiver_country = $shipping_address['country'];
+        $is_domestic = ($shipper_country === $receiver_country);
+        $product_group = $product_type = '';
+        
+        // Set product group and type based on domestic/international shipping
+        if ($is_domestic) {
+            // Domestic shipment - same country
+            $product_group = 'DOM'; // Domestic
+            $product_type = 'ONP'; // Overnight Parcel for domestic
+        } else {
+            // International shipment - different countries
+            $product_group = 'EXP'; // Express for international
+            // Get international product type from Aramex settings or use default
+            $product_type = $this->getInternationalProductType($aramex_settings, 'PPX');
+        }
+        
         // Prepare shipment data
         $shipment_data = [
             // Account information
@@ -172,8 +191,8 @@ class ShipmentCreator
             
             // Shipment information
             'aramex_shipment_info_reference' => $order->get_id(),
-            'aramex_shipment_info_product_group' => 'DOM',
-            'aramex_shipment_info_product_type' => 'ONP',
+            'aramex_shipment_info_product_group' => $product_group,
+            'aramex_shipment_info_product_type' => $product_type,
             'aramex_shipment_info_payment_method' => $order->get_payment_method(),
             'aramex_shipment_info_payment_type' => 'P',
             'aramex_shipment_info_service_type' => [],
@@ -194,6 +213,13 @@ class ShipmentCreator
             'aramex_items' => [],
             'item_details' => ''
         ];
+
+        if (!$is_domestic) {
+            $shipment_data['CustomsValueAmount'] = array(
+                'Value' => $order->get_total(),
+                'CurrencyCode' => $order->get_currency()
+            );
+        }
         
         // Add items details
         foreach ($items as $item_id => $item) {
@@ -213,6 +239,40 @@ class ShipmentCreator
         }
         
         return $shipment_data;
+    }
+
+    /**
+     * Get product type from international settings, handling multi-select
+     * 
+     * This method handles the case where international_product_type is configured as a multi-select
+     * field in the Aramex settings. When multiple values are selected, it uses the first one
+     * and logs a warning to help with debugging.
+     * 
+     * @param array $aramex_settings Aramex settings array
+     * @param string $default Default product type if none configured
+     * @return string Selected product type
+     */
+    private function getInternationalProductType($aramex_settings, $default = 'PPX')
+    {
+        if (!isset($aramex_settings['international_product_type'])) {
+            return $default;
+        }
+        
+        // Handle multi-select field - if it's an array, take the first value
+        if (is_array($aramex_settings['international_product_type'])) {
+            if (!empty($aramex_settings['international_product_type'])) {
+                $product_type = $aramex_settings['international_product_type'][0];
+                // Log when multiple product types are available but using the first one
+                if (count($aramex_settings['international_product_type']) > 1) {
+                    error_log('Aramex Automation: Multiple international product types configured: ' . implode(', ', $aramex_settings['international_product_type']) . '. Using: ' . $product_type);
+                }
+                return $product_type;
+            } else {
+                return $default;
+            }
+        } else {
+            return $aramex_settings['international_product_type'];
+        }
     }
 
     /**

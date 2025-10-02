@@ -199,7 +199,10 @@ class AramexApi
             'aramex_shipment_description',
             'aramex_shipment_info_product_group',
             'aramex_shipment_info_product_type',
-            'aramex_shipment_info_payment_type'
+            'aramex_shipment_info_payment_type',
+            'aramex_shipment_shipper_account',
+            'aramex_shipment_shipper_reference',
+            'aramex_shipment_receiver_reference'
         ];
 
         $missing_fields = [];
@@ -265,7 +268,7 @@ class AramexApi
             'DueDate' => time() + (7 * 24 * 60 * 60),
             'PickupLocation' => get_option('aramex_automation_pickup_location', 'Reception'),
             'PickupGUID' => '',
-            'Comments' => $shipment_data['aramex_shipment_info_comment'],
+            'Comments' => $shipment_data['aramex_shipment_info_comment'] ?? 'Auto-generated shipment',
             'AccountingInstrcutions' => '',
             'OperationsInstructions' => '',
             'Details' => [
@@ -283,11 +286,15 @@ class AramexApi
                 'ProductType' => $shipment_data['aramex_shipment_info_product_type'],
                 'PaymentType' => $shipment_data['aramex_shipment_info_payment_type'],
                 'PaymentOptions' => $shipment_data['aramex_shipment_info_payment_option'] ?? '',
-                'Services' => $this->formatServices($shipment_data['aramex_shipment_info_service_type'], $shipment_data['aramex_shipment_info_product_type']),
+                'Services' => $this->formatServices($shipment_data['aramex_shipment_info_service_type'] ?? [], $shipment_data['aramex_shipment_info_product_type']),
                 'NumberOfPieces' => $shipment_data['number_pieces'],
                 'DescriptionOfGoods' => $shipment_data['aramex_shipment_description'],
                 'GoodsOriginCountry' => $shipment_data['aramex_shipment_shipper_country'],
-                'Items' => []
+                'Items' => $this->formatShipmentItems($shipment_data),
+                'CustomsValueAmount' => [
+                    'Value' => $shipment_data['CustomsValueAmount']['Value'] ?? 0,
+                    'CurrencyCode' => $shipment_data['CustomsValueAmount']['CurrencyCode'] ?? $shipment_data['aramex_shipment_currency_code_custom_hidden_item'] ?? ''
+                ],
             ],
             'Shipper' => [
                 'Reference1' => $shipment_data['aramex_shipment_shipper_reference'],
@@ -298,8 +305,8 @@ class AramexApi
                     'Line2' => '',
                     'Line3' => '',
                     'City' => $shipment_data['aramex_shipment_shipper_city'],
-                    'StateOrProvinceCode' => $shipment_data['aramex_shipment_shipper_state'],
-                    'PostCode' => $shipment_data['aramex_shipment_shipper_postal'],
+                    'StateOrProvinceCode' => $shipment_data['aramex_shipment_shipper_state'] ?? '',
+                    'PostCode' => $shipment_data['aramex_shipment_shipper_postal'] ?? '',
                     'CountryCode' => $shipment_data['aramex_shipment_shipper_country']
                 ],
                 'Contact' => [
@@ -315,7 +322,8 @@ class AramexApi
                     'CellPhone' => $shipment_data['aramex_shipment_shipper_phone'],
                     'EmailAddress' => $shipment_data['aramex_shipment_shipper_email'],
                     'Type' => ''
-                ]
+                ],
+                'TaxId' => $shipment_data['aramex_shipment_shipper_taxidvat'] ?? ''
             ],
             'Consignee' => [
                 'Reference1' => $shipment_data['aramex_shipment_receiver_reference'],
@@ -326,15 +334,15 @@ class AramexApi
                     'Line2' => '',
                     'Line3' => '',
                     'City' => $shipment_data['aramex_shipment_receiver_city'],
-                    'StateOrProvinceCode' => $shipment_data['aramex_shipment_receiver_state'],
-                    'PostCode' => $shipment_data['aramex_shipment_receiver_postal'],
+                    'StateOrProvinceCode' => $shipment_data['aramex_shipment_receiver_state'] ?? '',
+                    'PostCode' => $shipment_data['aramex_shipment_receiver_postal'] ?? '',
                     'CountryCode' => $shipment_data['aramex_shipment_receiver_country']
                 ],
                 'Contact' => [
                     'Department' => '',
                     'PersonName' => $shipment_data['aramex_shipment_receiver_name'],
                     'Title' => '',
-                    'CompanyName' => $shipment_data['aramex_shipment_receiver_company'],
+                    'CompanyName' => $shipment_data['aramex_shipment_receiver_company'] ?? $shipment_data['aramex_shipment_receiver_name'],
                     'PhoneNumber1' => $shipment_data['aramex_shipment_receiver_phone'],
                     'PhoneNumber1Ext' => '',
                     'PhoneNumber2' => '',
@@ -343,11 +351,62 @@ class AramexApi
                     'CellPhone' => $shipment_data['aramex_shipment_receiver_phone'],
                     'EmailAddress' => $shipment_data['aramex_shipment_receiver_email'],
                     'Type' => ''
-                ]
+                ],
+                'TaxId' => $shipment_data['aramex_shipment_receiver_taxidvat'] ?? ''
             ]
         ];
 
         return $formatted;
+    }
+
+    /**
+     * Format shipment items for API
+     */
+    private function formatShipmentItems($shipment_data)
+    {
+        $items = [];
+        
+        // Check if we have item details from the shipment data
+        if (isset($shipment_data['aramex_items']) && is_array($shipment_data['aramex_items'])) {
+            foreach ($shipment_data['aramex_items'] as $product_id => $quantity) {
+                $item = [
+                    'PackageType' => 'Box',
+                    'Quantity' => $quantity,
+                    'Weight' => [
+                        'Value' => $shipment_data['aramex_items_base_weight_' . $product_id] ?? 0.5,
+                        'Unit' => $shipment_data['weight_unit']
+                    ],
+                    'Comments' => $shipment_data['aramex_items_Title_' . $product_id] ?? 'Product ' . $product_id,
+                    'Reference' => $product_id
+                ];
+                
+                // Add customs information for international shipments
+                if (isset($shipment_data['CustomsValueAmount'])) {
+                    $item['CustomsValueAmount'] = [
+                        'Value' => $shipment_data['aramex_items_base_price_' . $product_id] * $quantity,
+                        'CurrencyCode' => $shipment_data['CustomsValueAmount']['CurrencyCode'] ?? 'USD'
+                    ];
+                }
+                
+                $items[] = $item;
+            }
+        }
+        
+        // If no items found, create a default item
+        if (empty($items)) {
+            $items[] = [
+                'PackageType' => 'Box',
+                'Quantity' => 1,
+                'Weight' => [
+                    'Value' => $shipment_data['order_weight'] ?? 0.5,
+                    'Unit' => $shipment_data['weight_unit']
+                ],
+                'Comments' => $shipment_data['aramex_shipment_description'] ?? 'Shipment items',
+                'Reference' => $shipment_data['aramex_shipment_original_reference']
+            ];
+        }
+        
+        return $items;
     }
 
     /**
@@ -442,6 +501,27 @@ class AramexApi
         // Get next working day for pickup
         $pickup_date_timestamp = $this->getNextWorkingDay();
         
+        // Determine if shipment is domestic or international (same logic as ShipmentCreator)
+        // Compare shipper country (from Aramex settings) with receiver country (from order)
+        $shipping_address = $order->get_address('shipping');
+        if (empty($shipping_address['first_name']) && empty($shipping_address['last_name'])) {
+            $shipping_address = $order->get_address('billing');
+        }
+        
+        $shipper_country = $aramex_settings['country'];
+        $receiver_country = $shipping_address['country'];
+        $is_domestic = ($shipper_country === $receiver_country);
+        
+        // Set product group and type for pickup based on domestic/international
+        if ($is_domestic) {
+            $pickup_product_group = 'DOM'; // Domestic pickup
+            $pickup_product_type = 'OND'; // On Demand for domestic pickup
+        } else {
+            $pickup_product_group = 'EXP'; // Express for international pickup
+            // Get international product type from Aramex settings or use default
+            $pickup_product_type = $this->getInternationalProductType($aramex_settings, 'PPX');
+        }
+        
         // Create Unix timestamps for time fields (following the original plugin's approach)
         $ready_time = mktime($ready_hour, $ready_minute, 0, date("m", $pickup_date_timestamp), date("d", $pickup_date_timestamp), date("Y", $pickup_date_timestamp));
         $closing_time = mktime($latest_hour, $latest_minute, 0, date("m", $pickup_date_timestamp), date("d", $pickup_date_timestamp), date("Y", $pickup_date_timestamp));
@@ -483,8 +563,8 @@ class AramexApi
             ],
             'PickupItems' => [
                 'PickupItemDetail' => [
-                    'ProductGroup' => 'DOM',
-                    'ProductType' => 'OND',
+                    'ProductGroup' => $pickup_product_group,
+                    'ProductType' => $pickup_product_type,
                     'Payment' => 'P',
                     'NumberOfShipments' => 1,
                     'NumberOfPieces' => 1,
@@ -763,6 +843,40 @@ class AramexApi
             'success' => false,
             'message' => 'No pickup ID returned from API'
         ];
+    }
+
+    /**
+     * Get product type from international settings, handling multi-select
+     * 
+     * This method handles the case where international_product_type is configured as a multi-select
+     * field in the Aramex settings. When multiple values are selected, it uses the first one
+     * and logs a warning to help with debugging.
+     * 
+     * @param array $aramex_settings Aramex settings array
+     * @param string $default Default product type if none configured
+     * @return string Selected product type
+     */
+    private function getInternationalProductType($aramex_settings, $default = 'PPX')
+    {
+        if (!isset($aramex_settings['international_product_type'])) {
+            return $default;
+        }
+        
+        // Handle multi-select field - if it's an array, take the first value
+        if (is_array($aramex_settings['international_product_type'])) {
+            if (!empty($aramex_settings['international_product_type'])) {
+                $product_type = $aramex_settings['international_product_type'][0];
+                // Log when multiple product types are available but using the first one
+                if (count($aramex_settings['international_product_type']) > 1) {
+                    error_log('Aramex Automation: Multiple international product types configured for pickup: ' . implode(', ', $aramex_settings['international_product_type']) . '. Using: ' . $product_type);
+                }
+                return $product_type;
+            } else {
+                return $default;
+            }
+        } else {
+            return $aramex_settings['international_product_type'];
+        }
     }
 
     /**
